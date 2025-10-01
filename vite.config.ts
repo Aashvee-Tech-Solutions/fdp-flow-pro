@@ -9,6 +9,11 @@ export default defineConfig(({ mode }) => ({
     host: "0.0.0.0",
     port: 5000,
     strictPort: true,
+    allowedHosts: [
+      "d4ecded9-6d10-458a-871f-74c016c39bad-00-797jb8wtomcu.picard.replit.dev",
+      ".replit.dev",
+      ".repl.co",
+    ],
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {
