@@ -9,7 +9,7 @@ import { apiRouter } from "./routes";
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || (process.env.NODE_ENV === "production" ? 5000 : 3000);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Middleware
