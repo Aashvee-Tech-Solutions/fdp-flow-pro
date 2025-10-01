@@ -164,6 +164,19 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Admin Dashboard & Authentication (October 2025)
+- ✅ JWT-based admin authentication system with protected routes
+- ✅ Admin login page with secure credential validation
+- ✅ Complete admin dashboard with real-time data integration
+- ✅ Create FDP Dialog component for event creation
+- ✅ WhatsApp group link field added to FDP events schema
+- ✅ Enhanced payment webhook with automated notifications:
+  - Success: Sends confirmation emails & WhatsApp messages with group links
+  - Failure: Sends failure notifications via both channels
+- ✅ Authentication middleware for admin-only routes
+- ✅ Logout functionality with token cleanup
+- ✅ Admin routes: POST /api/admin/login
+
 ### Backend System Implementation (October 2025)
 - ✅ Complete database schema with Drizzle ORM (8 tables)
 - ✅ Express API server with RESTful endpoints

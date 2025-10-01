@@ -216,21 +216,25 @@ const AdminDashboard = () => {
                     <p>No FDP events created yet</p>
                     <p className="text-sm">Create your first event to get started</p>
                   </div>
-                ) : (events as any[]).map((event: any) => (
-                  <div key={event.id} className="bg-secondary/50 rounded-lg p-4 flex items-center justify-between">
-                    <div>
-                      <h3 className="font-semibold mb-1">{event.title}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {new Date(event.startDate).toLocaleDateString()} - {new Date(event.endDate).toLocaleDateString()}
-                      </p>
-                      <p className="text-sm text-accent mt-1">{event.category} • ₹{event.facultyFee} per faculty</p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" data-testid={`button-edit-fdp-${event.id}`}>Edit</Button>
-                      <Button variant="outline" size="sm" data-testid={`button-view-fdp-${event.id}`}>View Details</Button>
-                    </div>
-                  </div>
-                )))}
+                ) : (
+                  <>
+                    {(events as any[]).map((event: any) => (
+                      <div key={event.id} className="bg-secondary/50 rounded-lg p-4 flex items-center justify-between">
+                        <div>
+                          <h3 className="font-semibold mb-1">{event.title}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            {new Date(event.startDate).toLocaleDateString()} - {new Date(event.endDate).toLocaleDateString()}
+                          </p>
+                          <p className="text-sm text-accent mt-1">{event.category} • ₹{event.facultyFee} per faculty</p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" data-testid={`button-edit-fdp-${event.id}`}>Edit</Button>
+                          <Button variant="outline" size="sm" data-testid={`button-view-fdp-${event.id}`}>View Details</Button>
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                )}
               </div>
             </Card>
           </TabsContent>
