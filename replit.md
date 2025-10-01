@@ -21,7 +21,9 @@ Preferred communication style: Simple, everyday language.
 **UI Component Library**
 - Radix UI primitives for accessible, unstyled components
 - shadcn/ui design system with Tailwind CSS for styling
-- Custom theme system with CSS variables for dark mode support
+- Custom theme system with CSS variables for light/dark mode support
+- Light mode as default with dark mode toggle button in navbar
+- Theme persistence using next-themes library
 - Responsive design with mobile-first approach
 
 **State Management & Data Fetching**
@@ -30,10 +32,12 @@ Preferred communication style: Simple, everyday language.
 - Local component state using React hooks
 
 **Styling Approach**
-- Tailwind CSS utility-first styling
-- CSS custom properties (variables) for theming
+- Tailwind CSS utility-first styling with class-based dark mode
+- CSS custom properties (variables) for theming in HSL format
+- Light mode colors defined in :root, dark mode colors in .dark class
 - Class variance authority (CVA) for component variants
-- Dark mode support via next-themes
+- Theme switching via next-themes with localStorage persistence
+- ThemeToggle component in navbar for user-controlled theme switching
 
 **Key Design Patterns**
 - Component composition with slot pattern from Radix UI
