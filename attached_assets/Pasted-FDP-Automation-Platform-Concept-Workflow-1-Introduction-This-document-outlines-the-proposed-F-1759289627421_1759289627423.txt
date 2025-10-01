@@ -1,0 +1,91 @@
+FDP Automation Platform – Concept & Workflow
+1. Introduction
+This document outlines the proposed FDP Automation Platform for Aashvee Tech Research & Training LLP. The platform will automate registration, payments, communication, attendance tracking, feedback collection, and certificate generation for Faculty Development Programs (FDPs). It is designed to be generic and reusable for different FDPs (NAAC, NBA, and others).
+2. User Roles
+Admin
+- Create and manage FDPs (title, dates, description, fees, coupons).
+- Monitor registrations (host colleges and faculty).
+- Manage payments and refunds.
+- Send bulk communication via email and WhatsApp.
+- Manage certificate templates (logos, signatories, placeholders).
+- Review analytics and reports.
+Host College
+- Register the college for an FDP (college details, logo, contact person).
+- Make payment for host fee.
+- Receive confirmation and access to host dashboard.
+- Invite faculty to register under their institution.
+Faculty
+- Register for FDP individually or via host college.
+- Make payment for faculty fee.
+- Receive confirmation, joining links, and community group link.
+- Submit feedback form after FDP.
+- Download certificate (if conditions met).
+3. End-to-End Workflow
+- Admin creates an FDP event in the dashboard.
+- Event appears on the public FDP listing page.
+- Host Colleges register by filling college details, uploading logo, and paying the host fee.
+- Faculty register by selecting host college, filling details, and paying faculty fee.
+- On successful payment, confirmation emails and WhatsApp messages are sent.
+- Community link is shared to participants for updates.
+- During FDP, reminders are sent (WhatsApp + Email).
+- After FDP, feedback form link is sent.
+- On feedback completion, certificates are auto-generated and delivered (email + WhatsApp).
+- Admin reviews analytics, payments, and certificates issued.
+4. Core Modules
+- Admin Dashboard – FDP management, payments, bulk communication, certificate templates, analytics.
+- FDP Events Page – Public listing of all FDPs with registration forms.
+- Payment Integration – Cashfree API for host and faculty payments.
+- Communication – Nodemailer for email, WhatsApp Cloud API for messages.
+- Attendance & Feedback – Collected via Zoom/Google Meet API or Google Forms.
+- Certificate Generation – HTML template + Puppeteer/wkhtmltopdf for PDF export.
+5. Certificate Template Integration
+Certificates will be generated dynamically using a standard HTML/PDF template. The template will support placeholders that are replaced with participant data. Placeholders include:
+- {{participant_name}}
+- {{college_name}}
+- {{fdp_title}}
+- {{fdp_dates}}
+- {{organiser_logo}}
+- {{college_logo}}
+- {{signature_image}}
+The certificate design will include both the organiser's logo and the host college's logo, with digital signature images for authenticity. Generated certificates will be sent via email and WhatsApp without requiring eSign or DSC integration.
+6. Technology Stack
+- Frontend: React / Next.js for events listing and forms.
+- Backend: Node.js + Express for API and automation.
+- Database: Supabase (Postgres) or MongoDB.
+- Payments: Cashfree API with webhook integration.
+- Emails: Nodemailer with SMTP (Hostinger).
+- WhatsApp: WhatsApp Cloud API (Meta) or Twilio API.
+- Certificates: Puppeteer/wkhtmltopdf for HTML-to-PDF conversion.
+- Hosting: Replit for prototype, Render/Vercel for production.
+7. Next Steps
+1. Set up the database schema (events, colleges, faculty, payments, certificates).
+2. Develop admin dashboard for FDP management.
+3. Implement registration forms with Cashfree integration.
+4. Configure email and WhatsApp automation.
+5. Build certificate template engine and delivery system.
+6. Deploy on prototype hosting (Replit) and later migrate to production (Render/Vercel).
+8. Detailed Registration Workflow
+Host College Registration Workflow
+- Host College visits the FDP portal and selects the desired FDP.
+- Fills registration form with: College Name, Address, Website, Contact Person, Email, Phone, and uploads College Logo.
+- Chooses payment option (UPI/NetBanking/Card via Cashfree).
+- On successful payment, confirmation email + WhatsApp message sent with FDP details.
+- Host College gains access to a small dashboard where they can view registered faculty under them.
+- System generates a Host Confirmation Receipt (downloadable PDF).
+Faculty Registration Workflow
+- Faculty visits the FDP portal and selects the FDP.
+- Chooses whether to register under a Host College or as an Individual Participant.
+- Fills registration form with: Name, Email, Phone (WhatsApp), Designation, Department, Institution.
+- Makes payment via Cashfree payment gateway.
+- On successful payment, receives confirmation email + WhatsApp message with FDP joining link and group invite.
+- Added to the FDP participant list visible to Admin.
+- After FDP completion and feedback submission, certificate is auto-generated and delivered.
+Admin Workflow
+- Logs into the Admin Dashboard.
+- Creates new FDP event with all details: title, dates, description, fees, coupons, referral codes.
+- Monitors Host College and Faculty registrations in real time.
+- Manages payments, verifies pending transactions via Cashfree webhooks.
+- Sends bulk reminders and updates via Email + WhatsApp integration.
+- Uploads feedback form link and attendance records if required.
+- After FDP, triggers certificate generation batch for all eligible participants.
+- Reviews analytics dashboard for total registrations, payments, and certificates issued.
