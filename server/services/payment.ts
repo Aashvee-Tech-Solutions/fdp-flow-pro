@@ -12,6 +12,7 @@ export interface PaymentOrderData {
   customerEmail?: string;
   customerPhone?: string;
   customerName?: string;
+  baseUrl?: string; // For dynamic URL generation
 }
 
 export async function createPaymentOrder(data: PaymentOrderData) {
@@ -25,6 +26,10 @@ export async function createPaymentOrder(data: PaymentOrderData) {
     }
 
     const orderId = `ORDER_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    
+    // Determine base URL dynamically if not provided
+    const baseUrl = data.baseUrl || process.env.APP_URL || "http://localhost:5000";
+    const apiUrl = process.env.API_URL || baseUrl;
     
     // Create payment record in database
     const payment = await storage.createPayment({
@@ -50,8 +55,8 @@ export async function createPaymentOrder(data: PaymentOrderData) {
         customer_name: data.customerName || "User",
       },
       order_meta: {
-        return_url: `${process.env.APP_URL}/payment/callback?orderId=${orderId}`,
-        notify_url: `${process.env.API_URL}/api/payments/webhook`,
+        return_url: `${baseUrl}/payment/callback?orderId=${orderId}`,
+        notify_url: `${apiUrl}/api/payments/webhook`,
       },
     };
 
@@ -143,6 +148,52 @@ export async function verifyPayment(
     return false;
   } catch (error) {
     console.error("Payment verification error:", error);
+    return false;
+  }
+}
+
+export function verifyCashfreeWebhookSignature(
+  rawBody: string,
+  signature: string,
+  timestamp: string
+): boolean {
+  try {
+    const CASHFREE_SECRET_KEY = process.env.CASHFREE_SECRET_KEY;
+    
+    if (!CASHFREE_SECRET_KEY) {
+      console.error("❌ Cashfree secret key not configured for webhook verification");
+      return false;
+    }
+    
+    if (!signature || !timestamp || !rawBody) {
+      console.error("❌ Missing required webhook verification parameters");
+      return false;
+    }
+    
+    // Construct message: timestamp + rawBody (no separators)
+    const message = timestamp + rawBody;
+    
+    // Generate HMAC-SHA256 signature
+    const expectedSignature = crypto
+      .createHmac("sha256", CASHFREE_SECRET_KEY)
+      .update(message)
+      .digest("base64");
+    
+    // Constant-time comparison
+    const isValid = crypto.timingSafeEqual(
+      Buffer.from(signature),
+      Buffer.from(expectedSignature)
+    );
+    
+    if (isValid) {
+      console.log("✅ Webhook signature verified successfully");
+    } else {
+      console.error("❌ Webhook signature verification failed");
+    }
+    
+    return isValid;
+  } catch (error) {
+    console.error("❌ Webhook signature verification error:", error);
     return false;
   }
 }

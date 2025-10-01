@@ -12,6 +12,15 @@ const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors());
+
+// Preserve raw body for webhook signature verification
+app.use('/api/payments/webhook', express.json({
+  verify: (req: any, res, buf) => {
+    req.rawBody = buf.toString();
+  }
+}));
+
+// Regular JSON parsing for other routes
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

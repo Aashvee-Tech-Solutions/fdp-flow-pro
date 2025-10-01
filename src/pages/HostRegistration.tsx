@@ -27,13 +27,46 @@ const HostRegistration = () => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Mock payment integration - will be replaced with Cashfree
-    setTimeout(() => {
-      toast.success("Registration submitted! Redirecting to payment...");
-      setTimeout(() => {
-        navigate("/");
-      }, 2000);
-    }, 1500);
+    try {
+      const formDataToSend = new FormData();
+      formDataToSend.append("fdpId", id!);
+      formDataToSend.append("collegeName", formData.collegeName);
+      formDataToSend.append("address", formData.address);
+      formDataToSend.append("website", formData.website);
+      formDataToSend.append("contactPerson", formData.contactPerson);
+      formDataToSend.append("email", formData.email);
+      formDataToSend.append("phone", formData.phone);
+      formDataToSend.append("whatsapp", formData.phone);
+      formDataToSend.append("paymentStatus", "pending");
+      
+      if (formData.logo) {
+        formDataToSend.append("logo", formData.logo);
+      }
+
+      const response = await fetch("/api/host-colleges", {
+        method: "POST",
+        body: formDataToSend,
+      });
+
+      if (!response.ok) {
+        throw new Error("Registration failed");
+      }
+
+      const result = await response.json();
+      
+      toast.success("Registration created! Redirecting to payment gateway...");
+      
+      // Redirect to Cashfree payment page
+      if (result.paymentOrder?.paymentLink) {
+        window.location.href = result.paymentOrder.paymentLink;
+      } else {
+        throw new Error("Payment link not received");
+      }
+    } catch (error) {
+      console.error("Registration error:", error);
+      toast.error("Registration failed. Please try again.");
+      setIsLoading(false);
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {

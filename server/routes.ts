@@ -12,6 +12,7 @@ import {
   insertFacultyRegistrationSchema,
 } from "../shared/schema";
 import { authenticateAdmin, generateAdminToken } from "./middleware/auth";
+import { verifyCashfreeWebhookSignature } from "./services/payment";
 
 // Rate limiter for login endpoint - 5 attempts per 15 minutes
 const loginLimiter = rateLimit({
@@ -135,12 +136,27 @@ apiRouter.post("/host-colleges", upload.single("logo"), async (req: Request, res
     const validatedData = insertHostCollegeSchema.parse(dataToValidate);
     const college = await storage.createHostCollege(validatedData);
     
-    // Create payment order
+    // Get FDP event to fetch fee
+    const fdp = await storage.getFdpEvent(req.body.fdpId);
+    if (!fdp) {
+      return res.status(404).json({ error: "FDP event not found" });
+    }
+    
+    // Determine base URL from request
+    const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+    const host = req.headers['x-forwarded-host'] || req.headers.host || 'localhost:5000';
+    const baseUrl = `${protocol}://${host}`;
+    
+    // Create payment order with customer details
     const paymentOrder = await createPaymentOrder({
-      amount: parseFloat(req.body.hostFee),
+      amount: parseFloat(fdp.hostFee),
       entityType: "host_college",
       entityId: college.id,
       fdpId: req.body.fdpId,
+      customerEmail: college.email,
+      customerPhone: college.phone,
+      customerName: college.contactPerson,
+      baseUrl,
     });
     
     res.status(201).json({ college, paymentOrder });
@@ -177,12 +193,27 @@ apiRouter.post("/faculty-registrations", async (req: Request, res: Response) => 
     const validatedData = insertFacultyRegistrationSchema.parse(req.body);
     const registration = await storage.createFacultyRegistration(validatedData);
     
-    // Create payment order
+    // Get FDP event to fetch fee
+    const fdp = await storage.getFdpEvent(req.body.fdpId);
+    if (!fdp) {
+      return res.status(404).json({ error: "FDP event not found" });
+    }
+    
+    // Determine base URL from request
+    const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+    const host = req.headers['x-forwarded-host'] || req.headers.host || 'localhost:5000';
+    const baseUrl = `${protocol}://${host}`;
+    
+    // Create payment order with customer details
     const paymentOrder = await createPaymentOrder({
-      amount: parseFloat(req.body.facultyFee),
+      amount: parseFloat(fdp.facultyFee),
       entityType: "faculty",
       entityId: registration.id,
       fdpId: req.body.fdpId,
+      customerEmail: registration.email,
+      customerPhone: registration.phone,
+      customerName: registration.name,
+      baseUrl,
     });
     
     res.status(201).json({ registration, paymentOrder });
@@ -302,7 +333,16 @@ apiRouter.post("/payments/verify", async (req: Request, res: Response) => {
 // Webhook for Cashfree
 apiRouter.post("/payments/webhook", async (req: Request, res: Response) => {
   try {
-    // Verify webhook signature here
+    // Verify webhook signature
+    const signature = req.headers['x-webhook-signature'] as string;
+    const timestamp = req.headers['x-webhook-timestamp'] as string;
+    const rawBody = (req as any).rawBody;
+    
+    if (!verifyCashfreeWebhookSignature(rawBody, signature, timestamp)) {
+      console.error("❌ Webhook signature verification failed - rejecting request");
+      return res.status(401).json({ error: "Invalid webhook signature" });
+    }
+    
     const { orderId, paymentStatus, paymentId, data } = req.body;
     const isSuccess = paymentStatus === "SUCCESS" || data?.payment?.payment_status === "SUCCESS";
     

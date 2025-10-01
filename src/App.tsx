@@ -10,6 +10,7 @@ import HostRegistration from "./pages/HostRegistration";
 import FacultyRegistration from "./pages/FacultyRegistration";
 import AdminLogin from "./pages/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
+import PaymentCallback from "./pages/PaymentCallback";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +27,7 @@ const App = () => (
             <Route path="/fdp/:id" element={<FDPDetail />} />
             <Route path="/register/host/:id" element={<HostRegistration />} />
             <Route path="/register/faculty/:id" element={<FacultyRegistration />} />
+            <Route path="/payment/callback" element={<PaymentCallback />} />
             <Route path="/admin" element={<AdminLogin />} />
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

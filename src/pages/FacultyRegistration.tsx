@@ -28,13 +28,48 @@ const FacultyRegistration = () => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Mock payment integration - will be replaced with Cashfree
-    setTimeout(() => {
-      toast.success("Registration submitted! Redirecting to payment...");
-      setTimeout(() => {
-        navigate("/");
-      }, 2000);
-    }, 1500);
+    try {
+      const registrationData = {
+        fdpId: id!,
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        whatsapp: formData.phone,
+        designation: formData.designation,
+        department: formData.department,
+        institution: formData.institution,
+        registrationType: formData.registrationType,
+        hostCollegeId: formData.registrationType === "host" ? formData.hostCollege : null,
+        paymentStatus: "pending",
+      };
+
+      const response = await fetch("/api/faculty-registrations", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(registrationData),
+      });
+
+      if (!response.ok) {
+        throw new Error("Registration failed");
+      }
+
+      const result = await response.json();
+      
+      toast.success("Registration created! Redirecting to payment gateway...");
+      
+      // Redirect to Cashfree payment page
+      if (result.paymentOrder?.paymentLink) {
+        window.location.href = result.paymentOrder.paymentLink;
+      } else {
+        throw new Error("Payment link not received");
+      }
+    } catch (error) {
+      console.error("Registration error:", error);
+      toast.error("Registration failed. Please try again.");
+      setIsLoading(false);
+    }
   };
 
   return (
