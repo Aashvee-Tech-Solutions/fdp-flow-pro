@@ -1,11 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import Navbar from "@/components/Navbar";
+import CreateFDPDialog from "@/components/CreateFDPDialog";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
 import { 
   LayoutDashboard, 
   Calendar, 
@@ -14,11 +18,43 @@ import {
   FileText, 
   Mail,
   TrendingUp,
-  DollarSign
+  DollarSign,
+  LogOut
 } from "lucide-react";
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState("overview");
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  // Check authentication
+  useEffect(() => {
+    const token = localStorage.getItem("admin_token");
+    if (!token) {
+      toast({
+        title: "Unauthorized",
+        description: "Please login to access admin dashboard",
+        variant: "destructive",
+      });
+      navigate("/admin");
+    }
+  }, [navigate, toast]);
+
+  // Fetch FDP events
+  const { data: events = [] } = useQuery<any[]>({
+    queryKey: ["/api/fdp-events"],
+    enabled: !!localStorage.getItem("admin_token"),
+  });
+
+  const handleLogout = () => {
+    localStorage.removeItem("admin_token");
+    localStorage.removeItem("admin_email");
+    toast({
+      title: "Logged out",
+      description: "You have been logged out successfully",
+    });
+    navigate("/admin");
+  };
 
   const stats = [
     {
@@ -56,9 +92,15 @@ const AdminDashboard = () => {
       <Navbar />
 
       <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2">Admin Dashboard</h1>
-          <p className="text-muted-foreground">Manage FDP events, registrations, and communications</p>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold mb-2">Admin Dashboard</h1>
+            <p className="text-muted-foreground">Manage FDP events, registrations, and communications</p>
+          </div>
+          <Button variant="outline" onClick={handleLogout} data-testid="button-logout">
+            <LogOut className="h-4 w-4 mr-2" />
+            Logout
+          </Button>
         </div>
 
         {/* Stats Grid */}
@@ -164,39 +206,31 @@ const AdminDashboard = () => {
             <Card className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-semibold">Manage FDP Events</h2>
-                <Button variant="accent">
-                  <Calendar className="h-4 w-4 mr-2" />
-                  Create New FDP
-                </Button>
+                <CreateFDPDialog />
               </div>
 
               <div className="space-y-4">
-                {[
-                  {
-                    title: "NAAC Accreditation Workshop 2025",
-                    date: "Jan 15-17, 2025",
-                    registered: 145,
-                    status: "Active",
-                  },
-                  {
-                    title: "NBA Program Accreditation Training",
-                    date: "Feb 10-12, 2025",
-                    registered: 98,
-                    status: "Active",
-                  },
-                ].map((event, index) => (
-                  <div key={index} className="bg-secondary/50 rounded-lg p-4 flex items-center justify-between">
+                {events.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>No FDP events created yet</p>
+                    <p className="text-sm">Create your first event to get started</p>
+                  </div>
+                ) : (events as any[]).map((event: any) => (
+                  <div key={event.id} className="bg-secondary/50 rounded-lg p-4 flex items-center justify-between">
                     <div>
                       <h3 className="font-semibold mb-1">{event.title}</h3>
-                      <p className="text-sm text-muted-foreground">{event.date}</p>
-                      <p className="text-sm text-accent mt-1">{event.registered} registrations</p>
+                      <p className="text-sm text-muted-foreground">
+                        {new Date(event.startDate).toLocaleDateString()} - {new Date(event.endDate).toLocaleDateString()}
+                      </p>
+                      <p className="text-sm text-accent mt-1">{event.category} • ₹{event.facultyFee} per faculty</p>
                     </div>
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm">Edit</Button>
-                      <Button variant="outline" size="sm">View Details</Button>
+                      <Button variant="outline" size="sm" data-testid={`button-edit-fdp-${event.id}`}>Edit</Button>
+                      <Button variant="outline" size="sm" data-testid={`button-view-fdp-${event.id}`}>View Details</Button>
                     </div>
                   </div>
-                ))}
+                )))}
               </div>
             </Card>
           </TabsContent>

@@ -10,6 +10,7 @@ import {
   insertHostCollegeSchema,
   insertFacultyRegistrationSchema,
 } from "../shared/schema";
+import { authenticateAdmin, generateAdminToken } from "./middleware/auth";
 
 const upload = multer({ 
   dest: "uploads/",
@@ -26,6 +27,31 @@ const upload = multer({
 });
 
 export const apiRouter = express.Router();
+
+// ============= Admin Authentication Routes =============
+apiRouter.post("/admin/login", async (req: Request, res: Response) => {
+  try {
+    const { email, password } = req.body;
+    
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email and password are required" });
+    }
+
+    const token = generateAdminToken(email, password);
+    
+    if (token) {
+      res.json({ 
+        success: true, 
+        token,
+        email 
+      });
+    } else {
+      res.status(401).json({ error: "Invalid credentials" });
+    }
+  } catch (error) {
+    res.status(500).json({ error: "Login failed" });
+  }
+});
 
 // ============= FDP Events Routes =============
 apiRouter.get("/fdp-events", async (req: Request, res: Response) => {
@@ -51,7 +77,7 @@ apiRouter.get("/fdp-events/:id", async (req: Request, res: Response) => {
   }
 });
 
-apiRouter.post("/fdp-events", async (req: Request, res: Response) => {
+apiRouter.post("/fdp-events", authenticateAdmin, async (req: Request, res: Response) => {
   try {
     const validatedData = insertFdpEventSchema.parse(req.body);
     const event = await storage.createFdpEvent(validatedData);
@@ -64,7 +90,7 @@ apiRouter.post("/fdp-events", async (req: Request, res: Response) => {
   }
 });
 
-apiRouter.put("/fdp-events/:id", async (req: Request, res: Response) => {
+apiRouter.put("/fdp-events/:id", authenticateAdmin, async (req: Request, res: Response) => {
   try {
     const event = await storage.updateFdpEvent(req.params.id, req.body);
     if (!event) {
@@ -76,7 +102,7 @@ apiRouter.put("/fdp-events/:id", async (req: Request, res: Response) => {
   }
 });
 
-apiRouter.delete("/fdp-events/:id", async (req: Request, res: Response) => {
+apiRouter.delete("/fdp-events/:id", authenticateAdmin, async (req: Request, res: Response) => {
   try {
     const success = await storage.deleteFdpEvent(req.params.id);
     if (!success) {
@@ -267,15 +293,151 @@ apiRouter.post("/payments/verify", async (req: Request, res: Response) => {
 apiRouter.post("/payments/webhook", async (req: Request, res: Response) => {
   try {
     // Verify webhook signature here
-    const { orderId, paymentStatus, paymentId } = req.body;
+    const { orderId, paymentStatus, paymentId, data } = req.body;
+    const isSuccess = paymentStatus === "SUCCESS" || data?.payment?.payment_status === "SUCCESS";
     
     const payment = await storage.getPaymentByOrderId(orderId);
     if (payment) {
       await storage.updatePayment(payment.id, {
-        status: paymentStatus === "SUCCESS" ? "success" : "failed",
-        paymentId,
+        status: isSuccess ? "success" : "failed",
+        paymentId: paymentId || data?.payment?.cf_payment_id,
         gatewayResponse: req.body,
       });
+      
+      // Get FDP event details
+      const fdp = await storage.getFdpEvent(payment.fdpId);
+      
+      if (isSuccess) {
+        // Payment SUCCESS - Send confirmation
+        if (payment.entityType === "host_college") {
+          await storage.updateHostCollege(payment.entityId, {
+            paymentStatus: "completed",
+            paymentId: paymentId || data?.payment?.cf_payment_id,
+            amountPaid: payment.amount,
+          });
+          
+          const college = await storage.getHostCollege(payment.entityId);
+          if (college && fdp) {
+            // Send success email
+            await sendEmail({
+              to: college.email,
+              subject: `✅ Registration Confirmed - ${fdp.title}`,
+              html: `
+                <h2>Registration Successful!</h2>
+                <p>Dear ${college.contactPerson},</p>
+                <p>Your host college registration for <strong>${fdp.title}</strong> has been confirmed.</p>
+                <p><strong>Payment ID:</strong> ${paymentId}</p>
+                <p><strong>Amount Paid:</strong> ₹${payment.amount}</p>
+                ${fdp.whatsappGroupLink ? `<p><strong>WhatsApp Group:</strong> <a href="${fdp.whatsappGroupLink}">Join Here</a></p>` : ''}
+                ${fdp.joiningLink ? `<p><strong>FDP Joining Link:</strong> <a href="${fdp.joiningLink}">Click Here</a></p>` : ''}
+                <p>Thank you for registering with Aashvee FDP!</p>
+              `,
+            });
+            
+            // Send success WhatsApp
+            if (college.whatsapp) {
+              let whatsappMsg = `✅ Registration Confirmed!\n\nYour host college registration for ${fdp.title} is confirmed.\n\nPayment ID: ${paymentId}\nAmount: ₹${payment.amount}`;
+              if (fdp.whatsappGroupLink) {
+                whatsappMsg += `\n\nWhatsApp Group: ${fdp.whatsappGroupLink}`;
+              }
+              if (fdp.joiningLink) {
+                whatsappMsg += `\n\nFDP Link: ${fdp.joiningLink}`;
+              }
+              
+              await sendWhatsAppMessage({
+                to: college.whatsapp,
+                message: whatsappMsg,
+              });
+            }
+          }
+        } else if (payment.entityType === "faculty") {
+          await storage.updateFacultyRegistration(payment.entityId, {
+            paymentStatus: "completed",
+            paymentId: paymentId || data?.payment?.cf_payment_id,
+            amountPaid: payment.amount,
+          });
+          
+          const faculty = await storage.getFacultyRegistration(payment.entityId);
+          if (faculty && fdp) {
+            // Send success email
+            await sendEmail({
+              to: faculty.email,
+              subject: `✅ Registration Confirmed - ${fdp.title}`,
+              html: `
+                <h2>Registration Successful!</h2>
+                <p>Dear ${faculty.name},</p>
+                <p>Your registration for <strong>${fdp.title}</strong> has been confirmed.</p>
+                <p><strong>Payment ID:</strong> ${paymentId}</p>
+                <p><strong>Amount Paid:</strong> ₹${payment.amount}</p>
+                ${fdp.whatsappGroupLink ? `<p><strong>WhatsApp Group:</strong> <a href="${fdp.whatsappGroupLink}">Join Here</a></p>` : ''}
+                ${fdp.joiningLink ? `<p><strong>FDP Joining Link:</strong> <a href="${fdp.joiningLink}">Click Here</a></p>` : ''}
+                <p>We look forward to seeing you!</p>
+              `,
+            });
+            
+            // Send success WhatsApp
+            if (faculty.whatsapp) {
+              let whatsappMsg = `✅ Registration Confirmed!\n\nYour registration for ${fdp.title} is confirmed.\n\nPayment ID: ${paymentId}\nAmount: ₹${payment.amount}`;
+              if (fdp.whatsappGroupLink) {
+                whatsappMsg += `\n\nWhatsApp Group: ${fdp.whatsappGroupLink}`;
+              }
+              if (fdp.joiningLink) {
+                whatsappMsg += `\n\nFDP Link: ${fdp.joiningLink}`;
+              }
+              
+              await sendWhatsAppMessage({
+                to: faculty.whatsapp,
+                message: whatsappMsg,
+              });
+            }
+          }
+        }
+      } else {
+        // Payment FAILED - Send failure notification
+        if (payment.entityType === "host_college") {
+          const college = await storage.getHostCollege(payment.entityId);
+          if (college && fdp) {
+            await sendEmail({
+              to: college.email,
+              subject: `❌ Payment Failed - ${fdp.title}`,
+              html: `
+                <h2>Payment Failed</h2>
+                <p>Dear ${college.contactPerson},</p>
+                <p>Unfortunately, your payment for <strong>${fdp.title}</strong> could not be processed.</p>
+                <p>Please try again or contact support.</p>
+              `,
+            });
+            
+            if (college.whatsapp) {
+              await sendWhatsAppMessage({
+                to: college.whatsapp,
+                message: `❌ Payment Failed\n\nYour payment for ${fdp.title} could not be processed. Please try again.`,
+              });
+            }
+          }
+        } else if (payment.entityType === "faculty") {
+          const faculty = await storage.getFacultyRegistration(payment.entityId);
+          if (faculty && fdp) {
+            await sendEmail({
+              to: faculty.email,
+              subject: `❌ Payment Failed - ${fdp.title}`,
+              html: `
+                <h2>Payment Failed</h2>
+                <p>Dear ${faculty.name},</p>
+                <p>Unfortunately, your payment for <strong>${fdp.title}</strong> could not be processed.</p>
+                <p>Please try again or contact support.</p>
+              `,
+            });
+            
+            if (faculty.whatsapp) {
+              await sendWhatsAppMessage({
+                to: faculty.whatsapp,
+                message: `❌ Payment Failed\n\nYour payment for ${fdp.title} could not be processed. Please try again.`,
+              });
+            }
+          }
+        }
+      }
     }
     
     res.json({ success: true });

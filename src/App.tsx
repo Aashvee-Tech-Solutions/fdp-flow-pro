@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import FDPDetail from "./pages/FDPDetail";
 import HostRegistration from "./pages/HostRegistration";
 import FacultyRegistration from "./pages/FacultyRegistration";
+import AdminLogin from "./pages/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
 import NotFound from "./pages/NotFound";
 
@@ -25,7 +26,8 @@ const App = () => (
             <Route path="/fdp/:id" element={<FDPDetail />} />
             <Route path="/register/host/:id" element={<HostRegistration />} />
             <Route path="/register/faculty/:id" element={<FacultyRegistration />} />
-            <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/admin" element={<AdminLogin />} />
+            <Route path="/admin/dashboard" element={<AdminDashboard />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
