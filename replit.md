@@ -164,18 +164,35 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Payment Security & Integration (October 2025)
+- ✅ **CRITICAL SECURITY FIX:** Cashfree webhook signature verification (HMAC-SHA256)
+  - Raw body preservation middleware for accurate signature validation
+  - Constant-time signature comparison to prevent timing attacks
+  - Rejects unauthorized webhook requests (401) before processing
+  - Uses x-webhook-signature and x-webhook-timestamp headers
+- ✅ Complete payment redirect flow implementation:
+  - HostRegistration and FacultyRegistration properly create orders via backend
+  - Backend fetches FDP fees from database (prevents client-side tampering)
+  - Dynamic payment link redirect to Cashfree hosted checkout
+  - PaymentCallback page handles return URL with payment verification
+- ✅ Dynamic base URL generation for full platform exportability
+  - Payment return URLs and webhook URLs calculated from request headers
+  - No hardcoded APP_URL required - works on any hosting platform
+- ✅ Payment verification endpoint (/api/payments/verify) with order status checks
+
 ### Admin Dashboard & Authentication (October 2025)
 - ✅ JWT-based admin authentication system with protected routes
-- ✅ Admin login page with secure credential validation
+- ✅ Admin login page with secure credential validation (ADMIN_EMAIL, ADMIN_PASSWORD)
 - ✅ Complete admin dashboard with real-time data integration
 - ✅ Create FDP Dialog component for event creation
 - ✅ WhatsApp group link field added to FDP events schema
 - ✅ Enhanced payment webhook with automated notifications:
   - Success: Sends confirmation emails & WhatsApp messages with group links
   - Failure: Sends failure notifications via both channels
-- ✅ Authentication middleware for admin-only routes
+- ✅ Authentication middleware for admin-only routes with JWT verification
 - ✅ Logout functionality with token cleanup
-- ✅ Admin routes: POST /api/admin/login
+- ✅ Rate limiting on login endpoint (5 attempts per 15 minutes)
+- ✅ Fail-fast validation for required secrets (JWT_SECRET, ADMIN_EMAIL, ADMIN_PASSWORD)
 
 ### Backend System Implementation (October 2025)
 - ✅ Complete database schema with Drizzle ORM (8 tables)
