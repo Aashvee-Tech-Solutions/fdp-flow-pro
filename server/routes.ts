@@ -51,12 +51,6 @@ apiRouter.post("/admin/login", loginLimiter, async (req: Request, res: Response)
   try {
     const { email, password } = req.body;
     
-    console.log("Login attempt - Email received:", email);
-    console.log("Expected admin email:", process.env.ADMIN_EMAIL);
-    console.log("Email match:", email === process.env.ADMIN_EMAIL);
-    console.log("Password received length:", password?.length);
-    console.log("Expected password length:", process.env.ADMIN_PASSWORD?.length);
-    
     if (!email || !password) {
       return res.status(400).json({ error: "Email and password are required" });
     }
@@ -64,14 +58,12 @@ apiRouter.post("/admin/login", loginLimiter, async (req: Request, res: Response)
     const token = generateAdminToken(email, password);
     
     if (token) {
-      console.log("✅ Login successful for:", email);
       res.json({ 
         success: true, 
         token,
         email 
       });
     } else {
-      console.log("❌ Login failed - Invalid credentials");
       res.status(401).json({ error: "Invalid credentials" });
     }
   } catch (error) {
