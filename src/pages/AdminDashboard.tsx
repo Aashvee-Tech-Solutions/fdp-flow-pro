@@ -31,14 +31,10 @@ const AdminDashboard = () => {
   useEffect(() => {
     const token = localStorage.getItem("admin_token");
     if (!token) {
-      toast({
-        title: "Unauthorized",
-        description: "Please login to access admin dashboard",
-        variant: "destructive",
-      });
       navigate("/admin");
     }
-  }, [navigate, toast]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Fetch FDP events
   const { data: events = [] } = useQuery<any[]>({
