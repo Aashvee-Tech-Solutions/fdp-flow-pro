@@ -18,6 +18,7 @@ export const fdpEvents = pgTable("fdp_events", {
   status: varchar("status", { length: 50 }).notNull().default("upcoming"), // upcoming, ongoing, completed, cancelled
   joiningLink: text("joining_link"),
   communityLink: text("community_link"),
+  whatsappGroupLink: text("whatsapp_group_link"),
   feedbackFormLink: text("feedback_form_link"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
