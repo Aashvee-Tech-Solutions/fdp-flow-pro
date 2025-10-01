@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:backend": "tsx watch server/index.ts",
-    "dev:full": "concurrently \"npm run dev\" \"npm run dev:backend\"",
+    "dev:backend": "tsx --tsconfig tsconfig.backend.json server/index.ts",
+    "dev:full": "concurrently \"npm run dev\" \"npm run dev:backend\" --kill-others-on-fail",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
