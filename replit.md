@@ -194,20 +194,40 @@ Preferred communication style: Simple, everyday language.
 - ✅ Rate limiting on login endpoint (5 attempts per 15 minutes)
 - ✅ Fail-fast validation for required secrets (JWT_SECRET, ADMIN_EMAIL, ADMIN_PASSWORD)
 
+### Certificate Generation System (October 2025)
+- ✅ Complete Puppeteer-based certificate generation with HTML templates
+- ✅ PDF export with custom design (A4 landscape, branded template)
+- ✅ File storage in uploads/certificates directory
+- ✅ Individual certificate generation endpoint (admin-protected)
+- ✅ Bulk certificate generation for entire FDP events
+- ✅ Automatic email delivery upon certificate generation
+- ✅ Certificate tracking with unique certificate IDs
+- ✅ Simplified certificate schema (certificateId, certificateUrl, issuedAt)
+
+### Complete Public FDP Workflow (October 2025)
+- ✅ Public FDP events listing page with API integration
+- ✅ Individual FDP detail pages with registration options
+- ✅ Host college and faculty registration forms
+- ✅ Complete payment integration flow with Cashfree
+- ✅ Payment callback handling with success/failure states
+- ✅ QueryClient configured with default queryFn for all API calls
+- ✅ Loading states and error handling throughout
+- ✅ End-to-end workflow: Browse → View Details → Register → Pay → Confirm
+
 ### Backend System Implementation (October 2025)
 - ✅ Complete database schema with Drizzle ORM (8 tables)
 - ✅ Express API server with RESTful endpoints
 - ✅ Email integration using Nodemailer with SMTP
 - ✅ WhatsApp integration with Cloud API and Twilio support
-- ✅ Cashfree payment gateway with webhook support
+- ✅ Cashfree payment gateway with secure webhook verification
 - ✅ Input validation using Zod schemas
 - ✅ File upload security with Multer
 - ✅ Complete storage interface with CRUD operations
 - ✅ Analytics and reporting functions
-- ✅ Bulk communication system
+- ✅ Bulk communication system (email and WhatsApp)
 - ✅ Coupon validation system
 - ✅ Environment-based configuration for portability
-- ✅ Comprehensive deployment documentation
+- ✅ Static file serving for uploads and certificates
 
 ### Theme System & Refresh Issue Fix
 - ✅ Replaced next-themes with custom React Context solution
