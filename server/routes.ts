@@ -1,4 +1,5 @@
 import express, { Request, Response } from "express";
+import rateLimit from "express-rate-limit";
 import { storage } from "./storage";
 import { sendEmail } from "./services/email";
 import { sendWhatsAppMessage } from "./services/whatsapp";
@@ -11,6 +12,15 @@ import {
   insertFacultyRegistrationSchema,
 } from "../shared/schema";
 import { authenticateAdmin, generateAdminToken } from "./middleware/auth";
+
+// Rate limiter for login endpoint - 5 attempts per 15 minutes
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // 5 attempts
+  message: "Too many login attempts, please try again after 15 minutes",
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 const upload = multer({ 
   dest: "uploads/",
@@ -29,7 +39,7 @@ const upload = multer({
 export const apiRouter = express.Router();
 
 // ============= Admin Authentication Routes =============
-apiRouter.post("/admin/login", async (req: Request, res: Response) => {
+apiRouter.post("/admin/login", loginLimiter, async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
     

@@ -1,7 +1,12 @@
 import { Request, Response, NextFunction } from "express";
 import crypto from "crypto";
 
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production";
+// Fail-fast if JWT_SECRET is not set
+if (!process.env.JWT_SECRET) {
+  throw new Error("FATAL: JWT_SECRET environment variable is not set. Cannot start server without it.");
+}
+
+const JWT_SECRET = process.env.JWT_SECRET;
 
 interface JWTPayload {
   email: string;
@@ -10,8 +15,21 @@ interface JWTPayload {
   exp: number;
 }
 
-// Simple JWT implementation using HMAC
-export function generateAdminToken(email: string): string {
+// Validate admin credentials and generate token
+export function generateAdminToken(email: string, password: string): string | null {
+  const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
+  const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+  
+  // Fail-fast if admin credentials are not configured
+  if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
+    throw new Error("FATAL: ADMIN_EMAIL and ADMIN_PASSWORD must be configured");
+  }
+  
+  // Validate credentials
+  if (email !== ADMIN_EMAIL || password !== ADMIN_PASSWORD) {
+    return null;
+  }
+  
   const header = {
     alg: "HS256",
     typ: "JWT"
