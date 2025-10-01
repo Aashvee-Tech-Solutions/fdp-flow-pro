@@ -47,34 +47,81 @@ Preferred communication style: Simple, everyday language.
 
 ### Backend Architecture
 
-**Database & Backend Services**
-- Supabase for backend-as-a-service
-- PostgreSQL database (via Supabase)
-- Auto-generated TypeScript types from database schema
-- Real-time capabilities through Supabase client
+**Server Framework & Runtime**
+- Node.js with Express for RESTful API
+- TypeScript for type-safe backend development
+- Port 3000 for API server (configurable via PORT env var)
+- CORS enabled for cross-origin requests
 
-**Authentication**
-- Supabase Auth with localStorage persistence
-- Auto-refresh token mechanism
-- Session management handled by Supabase client
+**Database & ORM**
+- PostgreSQL database (fully portable to any provider)
+- Drizzle ORM for type-safe database operations
+- Drizzle Kit for schema migrations and management
+- Environment-driven via DATABASE_URL
 
-**Data Models** (from types.ts)
-- FDP Events: Core event information with categories, dates, fees
-- Host Registrations: Institution/college registrations for hosting events
-- Faculty Registrations: Individual faculty member registrations
-- Communication Logs: Email/SMS tracking for notifications
-- Payment Tracking: Integration readiness for payment processing
+**Data Models** (shared/schema.ts)
+- **FDP Events**: Core event information with categories, dates, fees, banners
+- **Host Colleges**: Institution registrations with logo uploads and payment tracking
+- **Faculty Registrations**: Individual faculty registrations with payment and status
+- **Payments**: Complete payment records with gateway integration
+- **Communication Logs**: Email/WhatsApp message tracking and delivery status
+- **Certificates**: Generated certificates with download links and templates
+- **Coupons**: Discount coupon system with validation and usage tracking
+- **Admin Users**: Admin authentication and authorization (planned)
 
-### External Dependencies
+**Storage Layer** (server/storage.ts)
+- Abstracted storage interface (IStorage)
+- Complete CRUD operations for all entities
+- Analytics and reporting functions
+- Drizzle ORM implementation with PostgreSQL connection
 
-**Third-Party Services**
-- **Supabase**: Database, authentication, and real-time backend services
-  - Environment variables: VITE_SUPABASE_URL, VITE_SUPABASE_PUBLISHABLE_KEY
-  - Uses localStorage for session persistence
+**API Routes** (server/routes.ts)
+- FDP Events: Create, read, update, delete operations
+- Host College: Registration with file upload (logo)
+- Faculty: Registration and management
+- Payments: Order creation, verification, webhook handling
+- Communications: Bulk email and WhatsApp messaging
+- Analytics: Revenue, registrations, and participation metrics
+- Coupons: Validation and application
 
-- **Payment Gateway** (Planned Integration)
-  - Cashfree payment integration mentioned in code comments
-  - Currently using mock payment flows in registration forms
+**Input Validation**
+- Zod schemas for all API inputs
+- Type-safe validation using drizzle-zod
+- Error handling with detailed validation messages
+- File upload restrictions (size, type)
+
+### External Integrations
+
+**Email Service** (server/services/email.ts)
+- **Nodemailer** for SMTP email delivery
+- Configurable SMTP settings via environment variables
+- Email templates: Confirmations, reminders, certificates, feedback
+- HTML email support with inline styling
+- Environment variables: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM
+
+**WhatsApp Service** (server/services/whatsapp.ts)
+- **WhatsApp Cloud API (Meta)** - Primary integration
+- **Twilio WhatsApp** - Fallback option
+- Template and text message support
+- Message templates: Confirmations, reminders, certificates
+- Environment variables: 
+  - Cloud API: WHATSAPP_PHONE_ID, WHATSAPP_TOKEN
+  - Twilio: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_NUMBER
+
+**Payment Gateway** (server/services/payment.ts)
+- **Cashfree** payment gateway integration
+- Payment order creation and management
+- Payment verification with signature validation
+- Webhook support for payment status updates
+- Refund functionality
+- Environment variables: CASHFREE_APP_ID, CASHFREE_SECRET_KEY, CASHFREE_API_URL
+
+**File Upload** (multer)
+- Multer middleware for file handling
+- Logo uploads for host colleges
+- 5MB file size limit
+- Image format validation (JPEG, PNG, GIF)
+- Static file serving via Express
 
 **UI & Component Libraries**
 - **Radix UI**: Comprehensive set of accessible UI primitives
@@ -97,6 +144,43 @@ Preferred communication style: Simple, everyday language.
 - Lovable component tagger for development mode
 
 **Build & Deployment**
-- Static site generation via Vite build
+- Frontend: Static site generation via Vite build
+- Backend: Node.js Express server
 - Environment-specific builds (development/production modes)
-- Configured for deployment on Lovable platform
+- **Fully exportable to any hosting platform** (not tied to Replit)
+- Deployment options: Vercel/Netlify + Railway/Render, DigitalOcean, AWS, Heroku, VPS
+
+**Database Management**
+- Drizzle Kit for schema generation and migrations
+- Database push for schema synchronization
+- Drizzle Studio for visual database management
+- Commands: `npm run db:generate`, `npm run db:push`, `npm run db:studio`
+
+**Development Workflow**
+- `npm run dev` - Frontend only (Vite dev server)
+- `npm run dev:backend` - Backend only (Express API server)
+- `npm run dev:full` - Both frontend and backend concurrently
+- `npm run start:backend` - Production backend server
+
+## Recent Changes
+
+### Backend System Implementation (October 2025)
+- ✅ Complete database schema with Drizzle ORM (8 tables)
+- ✅ Express API server with RESTful endpoints
+- ✅ Email integration using Nodemailer with SMTP
+- ✅ WhatsApp integration with Cloud API and Twilio support
+- ✅ Cashfree payment gateway with webhook support
+- ✅ Input validation using Zod schemas
+- ✅ File upload security with Multer
+- ✅ Complete storage interface with CRUD operations
+- ✅ Analytics and reporting functions
+- ✅ Bulk communication system
+- ✅ Coupon validation system
+- ✅ Environment-based configuration for portability
+- ✅ Comprehensive deployment documentation
+
+### Theme System Fix
+- ✅ Replaced next-themes with custom React Context solution
+- ✅ Fixed auto-refresh issue on theme toggle
+- ✅ Light/dark mode with localStorage persistence
+- ✅ Theme toggle in navbar
