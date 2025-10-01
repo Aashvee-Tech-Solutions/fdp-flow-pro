@@ -2,13 +2,15 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import path from "path";
+import { fileURLToPath } from "url";
 import { testConnection } from "../db";
 import { apiRouter } from "./routes";
 
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5000;
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Middleware
 app.use(cors());
@@ -34,6 +36,19 @@ app.use("/api", apiRouter);
 app.get("/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
+
+// Serve static files from dist in production
+if (process.env.NODE_ENV === "production") {
+  const distPath = path.join(__dirname, "..", "dist");
+  app.use(express.static(distPath));
+  
+  // Handle client-side routing - serve index.html for all non-API routes
+  app.get("*", (req, res) => {
+    if (!req.path.startsWith("/api") && !req.path.startsWith("/uploads")) {
+      res.sendFile(path.join(distPath, "index.html"));
+    }
+  });
+}
 
 // Start server
 async function startServer() {

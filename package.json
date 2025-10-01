@@ -15,7 +15,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "start:backend": "tsx server/index.ts"
+    "start:backend": "tsx server/index.ts",
+    "start": "NODE_ENV=production tsx server/index.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
