@@ -13,6 +13,13 @@ import {
 } from "../shared/schema";
 import { authenticateAdmin, generateAdminToken } from "./middleware/auth";
 import { verifyCashfreeWebhookSignature } from "./services/payment";
+import {
+  generateCertificatePDF,
+  saveCertificate,
+  getDefaultCertificateTemplate,
+  type CertificateData,
+} from "./services/certificate";
+import { format } from "date-fns";
 
 // Rate limiter for login endpoint - 5 attempts per 15 minutes
 const loginLimiter = rateLimit({
@@ -593,6 +600,151 @@ apiRouter.post("/coupons/validate", async (req: Request, res: Response) => {
     res.json(coupon);
   } catch (error) {
     res.status(500).json({ error: "Failed to validate coupon" });
+  }
+});
+
+// ============= Certificate Routes =============
+apiRouter.post("/certificates/generate/:facultyId", authenticateAdmin, async (req: Request, res: Response) => {
+  try {
+    const { facultyId } = req.params;
+    
+    const faculty = await storage.getFacultyRegistration(facultyId);
+    if (!faculty) {
+      return res.status(404).json({ error: "Faculty registration not found" });
+    }
+    
+    const fdp = await storage.getFdpEvent(faculty.fdpId);
+    if (!fdp) {
+      return res.status(404).json({ error: "FDP event not found" });
+    }
+    
+    const certificateId = `CERT-${Date.now()}-${facultyId.slice(0, 8).toUpperCase()}`;
+    
+    const certificateData: CertificateData = {
+      participantName: faculty.name,
+      fdpTitle: fdp.title,
+      startDate: format(new Date(fdp.startDate), "MMM dd, yyyy"),
+      endDate: format(new Date(fdp.endDate), "MMM dd, yyyy"),
+      certificateId,
+      issueDate: format(new Date(), "MMM dd, yyyy"),
+    };
+    
+    const template = getDefaultCertificateTemplate();
+    const pdfBuffer = await generateCertificatePDF(certificateData, template);
+    
+    const fileName = `${certificateId}.pdf`;
+    const certificateUrl = await saveCertificate(pdfBuffer, fileName);
+    
+    const certificate = await storage.createCertificate({
+      facultyId,
+      fdpId: faculty.fdpId,
+      certificateId,
+      certificateUrl,
+      issuedAt: new Date(),
+    });
+    
+    await sendEmail({
+      to: faculty.email,
+      subject: `Certificate for ${fdp.title}`,
+      html: `
+        <h2>Congratulations ${faculty.name}!</h2>
+        <p>Your certificate for <strong>${fdp.title}</strong> is ready.</p>
+        <p>Certificate ID: ${certificateId}</p>
+        <p>You can download your certificate from the link below or it will be sent separately.</p>
+      `,
+    });
+    
+    res.json({ success: true, certificate });
+  } catch (error) {
+    console.error("Certificate generation error:", error);
+    res.status(500).json({ error: "Failed to generate certificate" });
+  }
+});
+
+apiRouter.get("/certificates/faculty/:facultyId", async (req: Request, res: Response) => {
+  try {
+    const certificate = await storage.getCertificateByFacultyId(req.params.facultyId);
+    if (!certificate) {
+      return res.status(404).json({ error: "Certificate not found" });
+    }
+    res.json(certificate);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch certificate" });
+  }
+});
+
+apiRouter.post("/certificates/bulk-generate/:fdpId", authenticateAdmin, async (req: Request, res: Response) => {
+  try {
+    const { fdpId } = req.params;
+    
+    const fdp = await storage.getFdpEvent(fdpId);
+    if (!fdp) {
+      return res.status(404).json({ error: "FDP event not found" });
+    }
+    
+    const faculty = await storage.getFacultyByFdp(fdpId);
+    const completedFaculty = faculty.filter(f => f.paymentStatus === "completed");
+    
+    const results: Array<{ facultyId: string; status: string; certificateId?: string; error?: string }> = [];
+    
+    for (const fac of completedFaculty) {
+      try {
+        const existingCert = await storage.getCertificateByFacultyId(fac.id);
+        if (existingCert) {
+          results.push({ facultyId: fac.id, status: "already_exists", certificateId: existingCert.certificateId });
+          continue;
+        }
+        
+        const certificateId = `CERT-${Date.now()}-${fac.id.slice(0, 8).toUpperCase()}`;
+        
+        const certificateData: CertificateData = {
+          participantName: fac.name,
+          fdpTitle: fdp.title,
+          startDate: format(new Date(fdp.startDate), "MMM dd, yyyy"),
+          endDate: format(new Date(fdp.endDate), "MMM dd, yyyy"),
+          certificateId,
+          issueDate: format(new Date(), "MMM dd, yyyy"),
+        };
+        
+        const template = getDefaultCertificateTemplate();
+        const pdfBuffer = await generateCertificatePDF(certificateData, template);
+        
+        const fileName = `${certificateId}.pdf`;
+        const certificateUrl = await saveCertificate(pdfBuffer, fileName);
+        
+        await storage.createCertificate({
+          facultyId: fac.id,
+          fdpId: fac.fdpId,
+          certificateId,
+          certificateUrl,
+          issuedAt: new Date(),
+        });
+        
+        await sendEmail({
+          to: fac.email,
+          subject: `Certificate for ${fdp.title}`,
+          html: `
+            <h2>Congratulations ${fac.name}!</h2>
+            <p>Your certificate for <strong>${fdp.title}</strong> is ready.</p>
+            <p>Certificate ID: ${certificateId}</p>
+          `,
+        });
+        
+        results.push({ facultyId: fac.id, status: "generated", certificateId });
+      } catch (error) {
+        console.error(`Error generating certificate for ${fac.id}:`, error);
+        results.push({ facultyId: fac.id, status: "error", error: "Generation failed" });
+      }
+    }
+    
+    res.json({ 
+      success: true, 
+      total: completedFaculty.length,
+      results 
+    });
+  } catch (error) {
+    console.error("Bulk certificate generation error:", error);
+    res.status(500).json({ error: "Failed to generate certificates" });
   }
 });
 

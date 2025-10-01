@@ -1,35 +1,27 @@
 import Navbar from "@/components/Navbar";
 import FDPCard from "@/components/FDPCard";
-import fdpBannerNAAC from "@/assets/fdp-banner-naac.jpg";
-import fdpBannerNBA from "@/assets/fdp-banner-nba.jpg";
+import { useQuery } from "@tanstack/react-query";
+import { Skeleton } from "@/components/ui/skeleton";
+import { format } from "date-fns";
+
+interface FdpEvent {
+  id: string;
+  title: string;
+  description: string;
+  bannerUrl: string | null;
+  startDate: string;
+  endDate: string;
+  location: string | null;
+  categories: string[] | null;
+  hostFee: number;
+  facultyFee: number;
+  whatsappGroupLink: string | null;
+}
 
 const Index = () => {
-  const fdpEvents = [
-    {
-      id: "naac-2025",
-      title: "NAAC Accreditation Workshop 2025",
-      banner: fdpBannerNAAC,
-      startDate: "Jan 15, 2025",
-      endDate: "Jan 17, 2025",
-      location: "Online (Zoom)",
-      categories: ["NAAC", "Accreditation", "Quality Assurance"],
-      hostFee: 5000,
-      facultyFee: 1500,
-      registeredCount: 145,
-    },
-    {
-      id: "nba-2025",
-      title: "NBA Program Accreditation Training",
-      banner: fdpBannerNBA,
-      startDate: "Feb 10, 2025",
-      endDate: "Feb 12, 2025",
-      location: "Hybrid (Bangalore & Online)",
-      categories: ["NBA", "Engineering", "Quality"],
-      hostFee: 6000,
-      facultyFee: 1800,
-      registeredCount: 98,
-    },
-  ];
+  const { data: fdpEvents, isLoading } = useQuery<FdpEvent[]>({
+    queryKey: ["/api/fdp-events"],
+  });
 
   return (
     <div className="min-h-screen bg-background">
@@ -57,15 +49,46 @@ const Index = () => {
       <section className="py-16">
         <div className="container mx-auto px-4">
           <div className="mb-12">
-            <h2 className="text-3xl font-bold mb-2">Upcoming Events</h2>
+            <h2 className="text-3xl font-bold mb-2" data-testid="heading-upcoming-events">Upcoming Events</h2>
             <p className="text-muted-foreground">Register your college or faculty members for our professional development programs</p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {fdpEvents.map((event) => (
-              <FDPCard key={event.id} {...event} />
-            ))}
-          </div>
+          {isLoading ? (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="space-y-4">
+                  <Skeleton className="h-48 w-full" />
+                  <Skeleton className="h-6 w-3/4" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-1/2" />
+                </div>
+              ))}
+            </div>
+          ) : fdpEvents && fdpEvents.length > 0 ? (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {fdpEvents.map((event) => (
+                <FDPCard
+                  key={event.id}
+                  id={event.id}
+                  title={event.title}
+                  banner={event.bannerUrl || ""}
+                  startDate={format(new Date(event.startDate), "MMM dd, yyyy")}
+                  endDate={format(new Date(event.endDate), "MMM dd, yyyy")}
+                  location={event.location || "Online"}
+                  categories={event.categories || []}
+                  hostFee={event.hostFee}
+                  facultyFee={event.facultyFee}
+                  registeredCount={0}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <p className="text-lg text-muted-foreground" data-testid="text-no-events">
+                No FDP events available at the moment. Check back soon!
+              </p>
+            </div>
+          )}
         </div>
       </section>
 

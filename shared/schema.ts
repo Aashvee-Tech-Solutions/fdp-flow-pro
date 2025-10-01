@@ -104,15 +104,9 @@ export const certificates = pgTable("certificates", {
   id: text("id").primaryKey().$defaultFn(() => randomUUID()),
   facultyId: text("faculty_id").references(() => facultyRegistrations.id).notNull(),
   fdpId: text("fdp_id").references(() => fdpEvents.id).notNull(),
+  certificateId: varchar("certificate_id", { length: 100 }).notNull().unique(),
   certificateUrl: text("certificate_url"),
-  participantName: varchar("participant_name", { length: 255 }).notNull(),
-  collegeName: varchar("college_name", { length: 255 }),
-  fdpTitle: varchar("fdp_title", { length: 255 }).notNull(),
-  fdpDates: varchar("fdp_dates", { length: 100 }),
-  organiserLogo: text("organiser_logo"),
-  collegeLogo: text("college_logo"),
-  signatureImage: text("signature_image"),
-  generatedAt: timestamp("generated_at").defaultNow().notNull(),
+  issuedAt: timestamp("issued_at").notNull(),
 });
 
 // Certificate Templates Table
@@ -159,7 +153,7 @@ export const insertHostCollegeSchema = createInsertSchema(hostColleges).omit({ i
 export const insertFacultyRegistrationSchema = createInsertSchema(facultyRegistrations).omit({ id: true, registeredAt: true });
 export const insertPaymentSchema = createInsertSchema(payments).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertCommunicationLogSchema = createInsertSchema(communicationLogs).omit({ id: true, createdAt: true });
-export const insertCertificateSchema = createInsertSchema(certificates).omit({ id: true, generatedAt: true });
+export const insertCertificateSchema = createInsertSchema(certificates).omit({ id: true });
 export const insertCertificateTemplateSchema = createInsertSchema(certificateTemplates).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertCouponSchema = createInsertSchema(coupons).omit({ id: true, createdAt: true });
 

@@ -3,57 +3,67 @@ import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, MapPin, Users, Building2, GraduationCap } from "lucide-react";
-import fdpBannerNAAC from "@/assets/fdp-banner-naac.jpg";
-import fdpBannerNBA from "@/assets/fdp-banner-nba.jpg";
+import { useQuery } from "@tanstack/react-query";
+import { Skeleton } from "@/components/ui/skeleton";
+import { format } from "date-fns";
+
+interface FdpEvent {
+  id: string;
+  title: string;
+  description: string;
+  bannerUrl: string | null;
+  startDate: string;
+  endDate: string;
+  location: string | null;
+  categories: string[] | null;
+  hostFee: number;
+  facultyFee: number;
+  whatsappGroupLink: string | null;
+}
 
 const FDPDetail = () => {
   const { id } = useParams();
 
-  // Mock data - will be replaced with API call
-  const fdpData: Record<string, any> = {
-    "naac-2025": {
-      title: "NAAC Accreditation Workshop 2025",
-      banner: fdpBannerNAAC,
-      startDate: "Jan 15, 2025",
-      endDate: "Jan 17, 2025",
-      timing: "9:00 AM - 5:00 PM IST",
-      location: "Online (Zoom)",
-      categories: ["NAAC", "Accreditation", "Quality Assurance"],
-      hostFee: 5000,
-      facultyFee: 1500,
-      registeredCount: 145,
-      description: "Comprehensive workshop on NAAC accreditation process, criteria, and best practices for quality enhancement in higher education institutions.",
-      highlights: [
-        "Understanding NAAC framework and criteria",
-        "Documentation and evidence collection",
-        "Self-assessment report preparation",
-        "Mock peer team visits",
-        "Best practices and case studies",
-      ],
-    },
-    "nba-2025": {
-      title: "NBA Program Accreditation Training",
-      banner: fdpBannerNBA,
-      startDate: "Feb 10, 2025",
-      endDate: "Feb 12, 2025",
-      timing: "9:00 AM - 5:00 PM IST",
-      location: "Hybrid (Bangalore & Online)",
-      categories: ["NBA", "Engineering", "Quality"],
-      hostFee: 6000,
-      facultyFee: 1800,
-      registeredCount: 98,
-      description: "In-depth training on NBA accreditation for engineering programs, focusing on outcome-based education and continuous quality improvement.",
-      highlights: [
-        "NBA framework and tier system",
-        "Program outcomes and assessment",
-        "Continuous quality improvement",
-        "SAR preparation and documentation",
-        "Interactive sessions with NBA experts",
-      ],
-    },
-  };
+  const { data: fdp, isLoading } = useQuery<FdpEvent>({
+    queryKey: [`/api/fdp-events/${id}`],
+    enabled: !!id,
+  });
 
-  const fdp = fdpData[id || ""] || fdpData["naac-2025"];
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="container mx-auto px-4 py-8">
+          <Skeleton className="h-96 w-full mb-8" />
+          <div className="grid lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 space-y-4">
+              <Skeleton className="h-8 w-3/4" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-full" />
+            </div>
+            <div className="lg:col-span-1">
+              <Skeleton className="h-96 w-full" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!fdp) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="container mx-auto px-4 py-16 text-center">
+          <h1 className="text-3xl font-bold mb-4">FDP Event Not Found</h1>
+          <p className="text-muted-foreground mb-8">The event you're looking for doesn't exist.</p>
+          <Button asChild>
+            <Link to="/">Back to Home</Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -61,7 +71,11 @@ const FDPDetail = () => {
 
       {/* Hero Banner */}
       <div className="relative h-96 overflow-hidden">
-        <img src={fdp.banner} alt={fdp.title} className="w-full h-full object-cover" />
+        {fdp.bannerUrl ? (
+          <img src={fdp.bannerUrl} alt={fdp.title} className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-primary/20 to-accent/20" />
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
       </div>
 
@@ -72,22 +86,24 @@ const FDPDetail = () => {
           <div className="lg:col-span-2 space-y-8">
             <div className="bg-card rounded-xl p-8 space-y-6 border border-border">
               <div className="flex flex-wrap gap-2">
-                {fdp.categories.map((category: string) => (
-                  <Badge key={category} variant="secondary">
-                    {category}
-                  </Badge>
-                ))}
+                {fdp.categories && fdp.categories.length > 0 ? (
+                  fdp.categories.map((category: string) => (
+                    <Badge key={category} variant="secondary">
+                      {category}
+                    </Badge>
+                  ))
+                ) : null}
               </div>
 
-              <h1 className="text-4xl font-bold">{fdp.title}</h1>
+              <h1 className="text-4xl font-bold" data-testid="heading-fdp-title">{fdp.title}</h1>
 
               <div className="grid sm:grid-cols-2 gap-4 py-4">
                 <div className="flex items-center gap-3 text-muted-foreground">
                   <Calendar className="h-5 w-5 text-accent" />
                   <div>
                     <div className="text-xs text-muted-foreground">Date</div>
-                    <div className="font-medium text-foreground">
-                      {fdp.startDate} - {fdp.endDate}
+                    <div className="font-medium text-foreground" data-testid="text-dates">
+                      {format(new Date(fdp.startDate), "MMM dd, yyyy")} - {format(new Date(fdp.endDate), "MMM dd, yyyy")}
                     </div>
                   </div>
                 </div>
@@ -96,25 +112,7 @@ const FDPDetail = () => {
                   <MapPin className="h-5 w-5 text-accent" />
                   <div>
                     <div className="text-xs text-muted-foreground">Location</div>
-                    <div className="font-medium text-foreground">{fdp.location}</div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 text-muted-foreground">
-                  <Users className="h-5 w-5 text-accent" />
-                  <div>
-                    <div className="text-xs text-muted-foreground">Registered</div>
-                    <div className="font-medium text-foreground">{fdp.registeredCount} Participants</div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 text-muted-foreground">
-                  <svg className="h-5 w-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <div>
-                    <div className="text-xs text-muted-foreground">Timing</div>
-                    <div className="font-medium text-foreground">{fdp.timing}</div>
+                    <div className="font-medium text-foreground" data-testid="text-location">{fdp.location || "Online"}</div>
                   </div>
                 </div>
               </div>
@@ -122,22 +120,6 @@ const FDPDetail = () => {
               <div className="border-t border-border pt-6">
                 <h2 className="text-2xl font-semibold mb-4">About This Program</h2>
                 <p className="text-muted-foreground leading-relaxed">{fdp.description}</p>
-              </div>
-
-              <div className="border-t border-border pt-6">
-                <h2 className="text-2xl font-semibold mb-4">Key Highlights</h2>
-                <ul className="space-y-3">
-                  {fdp.highlights.map((highlight: string, index: number) => (
-                    <li key={index} className="flex items-start gap-3">
-                      <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <svg className="w-4 h-4 text-primary" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      </div>
-                      <span className="text-muted-foreground">{highlight}</span>
-                    </li>
-                  ))}
-                </ul>
               </div>
             </div>
           </div>
