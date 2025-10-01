@@ -43,9 +43,11 @@ if (process.env.NODE_ENV === "production") {
   app.use(express.static(distPath));
   
   // Handle client-side routing - serve index.html for all non-API routes
-  app.get("*", (req, res) => {
-    if (!req.path.startsWith("/api") && !req.path.startsWith("/uploads")) {
+  app.use((req, res, next) => {
+    if (!req.path.startsWith("/api") && !req.path.startsWith("/uploads") && !req.path.startsWith("/health")) {
       res.sendFile(path.join(distPath, "index.html"));
+    } else {
+      next();
     }
   });
 }
