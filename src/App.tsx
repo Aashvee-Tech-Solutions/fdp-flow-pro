@@ -10,7 +10,6 @@ import HostRegistration from "./pages/HostRegistration";
 import FacultyRegistration from "./pages/FacultyRegistration";
 import AdminLogin from "./pages/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
-import AdminFDPDetail from "./pages/AdminFDPDetail"; // New import
 import PaymentCallback from "./pages/PaymentCallback";
 import NotFound from "./pages/NotFound";
 
@@ -19,15 +18,7 @@ const queryClient = new QueryClient({
     queries: {
       queryFn: async ({ queryKey }) => {
         const url = queryKey[0] as string;
-        const token = localStorage.getItem("admin_token"); // Include token for admin routes
-        const headers: HeadersInit = {
-          "Content-Type": "application/json",
-        };
-        if (token && url.startsWith("/api/admin")) { // Only add auth header for admin API calls
-          headers["Authorization"] = `Bearer ${token}`;
-        }
-        
-        const response = await fetch(url, { headers });
+        const response = await fetch(url);
         if (!response.ok) {
           throw new Error(`Network response was not ok: ${response.statusText}`);
         }
@@ -54,7 +45,6 @@ const App = () => (
             <Route path="/payment/callback" element={<PaymentCallback />} />
             <Route path="/admin" element={<AdminLogin />} />
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
-            <Route path="/admin/fdp/:id" element={<AdminFDPDetail />} /> {/* New Admin FDP Detail Route */}
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

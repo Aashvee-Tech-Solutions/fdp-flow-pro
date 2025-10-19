@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import Navbar from "@/components/Navbar";
 import CreateFDPDialog from "@/components/CreateFDPDialog";
@@ -19,10 +19,8 @@ import {
   Mail,
   TrendingUp,
   DollarSign,
-  LogOut,
-  Eye
+  LogOut
 } from "lucide-react";
-import { format } from "date-fns";
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState("overview");
@@ -39,41 +37,9 @@ const AdminDashboard = () => {
   }, []);
 
   // Fetch FDP events
-  const { data: events = [], isLoading: isLoadingEvents } = useQuery<any[]>({
+  const { data: events = [] } = useQuery<any[]>({
     queryKey: ["/api/fdp-events"],
     enabled: !!localStorage.getItem("admin_token"),
-  });
-
-  // Fetch Host Colleges
-  const { data: hostColleges = [], isLoading: isLoadingHostColleges } = useQuery<any[]>({
-    queryKey: ["/api/host-colleges"], // Assuming a route to fetch all host colleges for admin overview
-    enabled: !!localStorage.getItem("admin_token") && activeTab === "registrations",
-    queryFn: async () => {
-      const token = localStorage.getItem("admin_token");
-      const response = await fetch("/api/host-colleges-all", { // New route needed for all host colleges
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) throw new Error("Failed to fetch host colleges");
-      return response.json();
-    }
-  });
-
-  // Fetch Faculty Registrations
-  const { data: facultyRegistrations = [], isLoading: isLoadingFacultyRegistrations } = useQuery<any[]>({
-    queryKey: ["/api/faculty-registrations-all"], // New route needed for all faculty registrations
-    enabled: !!localStorage.getItem("admin_token") && activeTab === "registrations",
-    queryFn: async () => {
-      const token = localStorage.getItem("admin_token");
-      const response = await fetch("/api/faculty-registrations-all", {
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) throw new Error("Failed to fetch faculty registrations");
-      return response.json();
-    }
   });
 
   const handleLogout = () => {
@@ -86,67 +52,36 @@ const AdminDashboard = () => {
     navigate("/admin");
   };
 
-  // Placeholder stats - these would ideally come from an analytics API
-  const totalFDPs = events.length;
-  const totalHostColleges = hostColleges.length;
-  const totalFaculty = facultyRegistrations.length;
-  const totalRegistrations = totalHostColleges + totalFaculty; // Simple sum, actual logic might be more complex
-  const totalRevenue = "₹" + (events.reduce((sum, event) => sum + (parseFloat(event.hostFee) || 0) + (parseFloat(event.facultyFee) || 0), 0)).toLocaleString(); // This is a very rough estimate, actual revenue should come from payments table
-
   const stats = [
     {
       title: "Total FDPs",
-      value: totalFDPs.toString(),
+      value: "8",
       icon: Calendar,
       color: "text-primary",
       bgColor: "bg-primary/10",
     },
     {
       title: "Total Registrations",
-      value: totalRegistrations.toString(),
+      value: "243",
       icon: Users,
       color: "text-accent",
       bgColor: "bg-accent/10",
     },
     {
       title: "Host Colleges",
-      value: totalHostColleges.toString(),
+      value: "45",
       icon: Building2,
       color: "text-primary",
       bgColor: "bg-primary/10",
     },
     {
-      title: "Estimated Revenue",
-      value: totalRevenue,
+      title: "Revenue",
+      value: "₹4.2L",
       icon: DollarSign,
       color: "text-accent",
       bgColor: "bg-accent/10",
     },
   ];
-
-  const allRegistrations = [
-    ...hostColleges.map(hc => ({
-      id: hc.id,
-      name: hc.collegeName,
-      type: "Host College",
-      event: events.find(e => e.id === hc.fdpId)?.title || "N/A",
-      status: hc.paymentStatus === "completed" ? "Confirmed" : "Pending",
-      email: hc.email,
-      phone: hc.phone,
-      fdpId: hc.fdpId,
-    })),
-    ...facultyRegistrations.map(fr => ({
-      id: fr.id,
-      name: fr.name,
-      type: "Faculty",
-      college: fr.institution,
-      event: events.find(e => e.id === fr.fdpId)?.title || "N/A",
-      status: fr.paymentStatus === "completed" ? "Confirmed" : "Pending",
-      email: fr.email,
-      phone: fr.phone,
-      fdpId: fr.fdpId,
-    }))
-  ].sort((a, b) => new Date(b.registeredAt || 0).getTime() - new Date(a.registeredAt || 0).getTime()); // Assuming registeredAt exists
 
   return (
     <div className="min-h-screen bg-background">
@@ -210,20 +145,20 @@ const AdminDashboard = () => {
                 Recent Activity
               </h2>
               <div className="space-y-4">
-                {allRegistrations.slice(0, 5).map((reg, index) => (
+                {[
+                  { type: "registration", text: "New faculty registration for NAAC Workshop", time: "5 min ago" },
+                  { type: "payment", text: "Payment received from ABC Engineering College", time: "1 hour ago" },
+                  { type: "registration", text: "Host college registered for NBA Training", time: "2 hours ago" },
+                  { type: "feedback", text: "5 new feedback submissions received", time: "3 hours ago" },
+                ].map((activity, index) => (
                   <div key={index} className="flex items-start gap-4 pb-4 border-b border-border last:border-0">
                     <div className="w-2 h-2 rounded-full bg-accent mt-2"></div>
                     <div className="flex-1">
-                      <p className="text-sm">
-                        {reg.type === "Host College" ? `New host college registration: ${reg.name} for ${reg.event}` : `New faculty registration: ${reg.name} for ${reg.event}`}
-                      </p>
-                      <p className="text-xs text-muted-foreground">{format(new Date(reg.registeredAt || new Date()), "MMM dd, yyyy HH:mm")}</p>
+                      <p className="text-sm">{activity.text}</p>
+                      <p className="text-xs text-muted-foreground">{activity.time}</p>
                     </div>
                   </div>
                 ))}
-                {allRegistrations.length === 0 && (
-                  <p className="text-center text-muted-foreground">No recent registrations.</p>
-                )}
               </div>
             </Card>
 
@@ -231,30 +166,27 @@ const AdminDashboard = () => {
               <Card className="p-6">
                 <h3 className="text-lg font-semibold mb-4">Upcoming FDPs</h3>
                 <div className="space-y-3">
-                  {isLoadingEvents ? (
-                    <p className="text-muted-foreground">Loading upcoming events...</p>
-                  ) : events.filter((e: any) => new Date(e.startDate) > new Date()).length > 0 ? (
-                    events.filter((e: any) => new Date(e.startDate) > new Date()).map((event: any) => (
-                      <div key={event.id} className="flex justify-between items-center">
-                        <span>{event.title}</span>
-                        <span className="text-sm text-muted-foreground">{format(new Date(event.startDate), "MMM dd, yyyy")}</span>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-muted-foreground">No upcoming FDPs.</p>
-                  )}
+                  <div className="flex justify-between items-center">
+                    <span>NAAC Accreditation Workshop</span>
+                    <span className="text-sm text-muted-foreground">Jan 15, 2025</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span>NBA Program Training</span>
+                    <span className="text-sm text-muted-foreground">Feb 10, 2025</span>
+                  </div>
                 </div>
               </Card>
 
               <Card className="p-6">
                 <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
                 <div className="space-y-2">
-                  <CreateFDPDialog />
-                  <Button variant="outline" className="w-full justify-start" asChild>
-                    <Link to="/admin/communications">
-                      <Mail className="h-4 w-4 mr-2" />
-                      Send Bulk Communication
-                    </Link>
+                  <Button variant="outline" className="w-full justify-start">
+                    <Calendar className="h-4 w-4 mr-2" />
+                    Create New FDP
+                  </Button>
+                  <Button variant="outline" className="w-full justify-start">
+                    <Mail className="h-4 w-4 mr-2" />
+                    Send Bulk Email
                   </Button>
                   <Button variant="outline" className="w-full justify-start">
                     <FileText className="h-4 w-4 mr-2" />
@@ -274,12 +206,7 @@ const AdminDashboard = () => {
               </div>
 
               <div className="space-y-4">
-                {isLoadingEvents ? (
-                  <div className="text-center py-12 text-muted-foreground">
-                    <Loader2 className="h-12 w-12 mx-auto mb-4 animate-spin opacity-50" />
-                    <p>Loading FDP events...</p>
-                  </div>
-                ) : events.length === 0 ? (
+                {events.length === 0 ? (
                   <div className="text-center py-12 text-muted-foreground">
                     <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
                     <p>No FDP events created yet</p>
@@ -287,22 +214,18 @@ const AdminDashboard = () => {
                   </div>
                 ) : (
                   <>
-                    {events.map((event: any) => (
+                    {(events as any[]).map((event: any) => (
                       <div key={event.id} className="bg-secondary/50 rounded-lg p-4 flex items-center justify-between">
                         <div>
                           <h3 className="font-semibold mb-1">{event.title}</h3>
                           <p className="text-sm text-muted-foreground">
-                            {format(new Date(event.startDate), "MMM dd, yyyy")} - {format(new Date(event.endDate), "MMM dd, yyyy")}
+                            {new Date(event.startDate).toLocaleDateString()} - {new Date(event.endDate).toLocaleDateString()}
                           </p>
                           <p className="text-sm text-accent mt-1">{event.category} • ₹{event.facultyFee} per faculty</p>
                         </div>
                         <div className="flex gap-2">
-                          <Button variant="outline" size="sm" asChild>
-                            <Link to={`/admin/fdp/${event.id}`} data-testid={`button-view-fdp-${event.id}`}>
-                              <Eye className="h-4 w-4 mr-2" />
-                              View Details
-                            </Link>
-                          </Button>
+                          <Button variant="outline" size="sm" data-testid={`button-edit-fdp-${event.id}`}>Edit</Button>
+                          <Button variant="outline" size="sm" data-testid={`button-view-fdp-${event.id}`}>View Details</Button>
                         </div>
                       </div>
                     ))}
@@ -322,42 +245,29 @@ const AdminDashboard = () => {
               </div>
 
               <div className="space-y-4">
-                {(isLoadingHostColleges || isLoadingFacultyRegistrations) ? (
-                  <div className="text-center py-12 text-muted-foreground">
-                    <Loader2 className="h-12 w-12 mx-auto mb-4 animate-spin opacity-50" />
-                    <p>Loading registrations...</p>
-                  </div>
-                ) : allRegistrations.length === 0 ? (
-                  <div className="text-center py-12 text-muted-foreground">
-                    <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>No registrations found yet.</p>
-                  </div>
-                ) : (
-                  allRegistrations.map((reg, index) => (
-                    <div key={index} className="bg-secondary/50 rounded-lg p-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="font-semibold">{reg.name}</h3>
-                          <p className="text-sm text-muted-foreground">{reg.type} • {reg.event}</p>
-                          {reg.college && <p className="text-xs text-muted-foreground">{reg.college}</p>}
-                          <p className="text-xs text-muted-foreground">Email: {reg.email} | Phone: {reg.phone}</p>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            reg.status === "Confirmed" ? "bg-primary/10 text-primary" : "bg-accent/10 text-accent"
-                          }`}>
-                            {reg.status}
-                          </span>
-                          <Button variant="outline" size="sm" asChild>
-                            <Link to={`/admin/fdp/${reg.fdpId}?tab=registrations&regId=${reg.id}`}>
-                              Details
-                            </Link>
-                          </Button>
-                        </div>
+                {[
+                  { name: "Dr. Rajesh Kumar", type: "Faculty", college: "ABC Engineering", event: "NAAC Workshop", status: "Confirmed" },
+                  { name: "XYZ Institute of Tech", type: "Host", college: "-", event: "NBA Training", status: "Pending" },
+                  { name: "Prof. Priya Sharma", type: "Faculty", college: "DEF College", event: "NAAC Workshop", status: "Confirmed" },
+                ].map((reg, index) => (
+                  <div key={index} className="bg-secondary/50 rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-semibold">{reg.name}</h3>
+                        <p className="text-sm text-muted-foreground">{reg.type} • {reg.event}</p>
+                        {reg.college !== "-" && <p className="text-xs text-muted-foreground">{reg.college}</p>}
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          reg.status === "Confirmed" ? "bg-primary/10 text-primary" : "bg-accent/10 text-accent"
+                        }`}>
+                          {reg.status}
+                        </span>
+                        <Button variant="outline" size="sm">Details</Button>
                       </div>
                     </div>
-                  ))
-                )}
+                  </div>
+                ))}
               </div>
             </Card>
           </TabsContent>
@@ -367,28 +277,37 @@ const AdminDashboard = () => {
             <Card className="p-6">
               <h2 className="text-2xl font-semibold mb-6">Send Communication</h2>
               
-              <p className="text-muted-foreground mb-4">
-                Select an FDP event to send targeted communications (reminders, community links, feedback forms) to its participants.
-              </p>
-
-              <div className="space-y-4">
+              <form className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="selectFdpForComm">Select FDP Event</Label>
-                  <select 
-                    id="selectFdpForComm"
-                    className="w-full px-3 py-2 rounded-md bg-secondary border border-border"
-                    onChange={(e) => navigate(`/admin/fdp/${e.target.value}?tab=communications`)}
-                  >
-                    <option value="">-- Select an FDP --</option>
-                    {events.map((event: any) => (
-                      <option key={event.id} value={event.id}>{event.title}</option>
-                    ))}
+                  <Label>Select Recipients</Label>
+                  <select className="w-full px-3 py-2 rounded-md bg-secondary border border-border">
+                    <option>All Registered Participants</option>
+                    <option>Host Colleges Only</option>
+                    <option>Faculty Members Only</option>
+                    <option>Specific FDP Participants</option>
                   </select>
                 </div>
-                <p className="text-muted-foreground text-sm">
-                  You can manage specific communications for an FDP on its detail page.
-                </p>
-              </div>
+
+                <div className="space-y-2">
+                  <Label>Subject</Label>
+                  <Input placeholder="Email subject" />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Message</Label>
+                  <Textarea placeholder="Enter your message..." rows={6} />
+                </div>
+
+                <div className="flex gap-4">
+                  <Button variant="accent">
+                    <Mail className="h-4 w-4 mr-2" />
+                    Send Email
+                  </Button>
+                  <Button variant="outline">
+                    Send WhatsApp
+                  </Button>
+                </div>
+              </form>
             </Card>
           </TabsContent>
         </Tabs>

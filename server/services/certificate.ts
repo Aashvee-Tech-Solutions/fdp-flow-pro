@@ -3,18 +3,18 @@ import path from "path";
 import fs from "fs";
 
 export interface CertificateData {
-  participant_name: string; // Changed to snake_case
-  fdp_title: string; // Changed to snake_case
-  start_date: string; // Changed to snake_case
-  end_date: string; // Changed to snake_case
-  certificate_id: string; // Changed to snake_case
-  issue_date: string; // Changed to snake_case
+  participantName: string;
+  fdpTitle: string;
+  startDate: string;
+  endDate: string;
+  certificateId: string;
+  issueDate: string;
   // Optional enriched fields for advanced templates
-  college_name?: string; // Changed to snake_case
-  fdp_dates?: string; // Changed to snake_case
-  organiser_logo?: string; // Changed to snake_case
-  college_logo?: string; // Changed to snake_case
-  signature_image?: string; // Changed to snake_case
+  collegeName?: string;
+  fdpDates?: string;
+  organiserLogo?: string;
+  collegeLogo?: string;
+  signatureImage?: string;
 }
 
 export async function generateCertificatePDF(
@@ -70,22 +70,19 @@ function renderCertificateTemplate(template: string, data: CertificateData): str
 
   // Support both camelCase and snake_case placeholders
   const replacements: Record<string, string | undefined> = {
-    participantName: data.participant_name,
-    participant_name: data.participant_name,
-    fdpTitle: data.fdp_title,
-    fdp_title: data.fdp_title,
-    startDate: data.start_date,
-    endDate: data.end_date,
-    fdp_dates: data.fdp_dates || `${data.start_date} - ${data.end_date}`,
-    certificateId: data.certificate_id,
-    certificate_id: data.certificate_id,
-    issueDate: data.issue_date,
-    issue_date: data.issue_date,
-    collegeName: data.college_name,
-    college_name: data.college_name,
-    organiser_logo: data.organiser_logo,
-    college_logo: data.college_logo,
-    signature_image: data.signature_image,
+    participantName: data.participantName,
+    participant_name: data.participantName,
+    fdpTitle: data.fdpTitle,
+    fdp_title: data.fdpTitle,
+    startDate: data.startDate,
+    endDate: data.endDate,
+    fdp_dates: data.fdpDates || `${data.startDate} - ${data.endDate}`,
+    certificateId: data.certificateId,
+    issueDate: data.issueDate,
+    college_name: data.collegeName,
+    organiser_logo: data.organiserLogo,
+    college_logo: data.collegeLogo,
+    signature_image: data.signatureImage,
   };
 
   for (const [key, value] of Object.entries(replacements)) {
@@ -328,7 +325,7 @@ export function getDefaultCertificateTemplate(): string {
     </div>
     
     <div class="content">
-      <div class="recipient-name">{{participant_name}}</div>
+      <div class="recipient-name">{{participantName}}</div>
       
       <div class="description">
         has successfully completed the Faculty Development Program
@@ -351,7 +348,7 @@ export function getDefaultCertificateTemplate(): string {
       <div class="signature-section">
         <div class="signature-line"></div>
         <div class="signature-title">Issue Date</div>
-        <div class="signature-name">{{issue_date}}</div>
+        <div class="signature-name">{{issueDate}}</div>
       </div>
     </div>
     
@@ -371,7 +368,7 @@ export function getDefaultCertificateTemplate(): string {
     </div>
 
     <div class="certificate-id">
-      Certificate ID: {{certificate_id}}
+      Certificate ID: {{certificateId}}
     </div>
   </div>
 </body>

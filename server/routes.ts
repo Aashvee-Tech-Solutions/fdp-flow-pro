@@ -186,22 +186,12 @@ apiRouter.get("/host-colleges/:id", async (req: Request, res: Response) => {
   }
 });
 
-apiRouter.get("/fdp-events/:fdpId/host-colleges", authenticateAdmin, async (req: Request, res: Response) => {
+apiRouter.get("/fdp-events/:fdpId/host-colleges", async (req: Request, res: Response) => {
   try {
     const colleges = await storage.getHostCollegesByFdp(req.params.fdpId);
     res.json(colleges);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch host colleges" });
-  }
-});
-
-// New route to fetch all host colleges for admin dashboard overview
-apiRouter.get("/host-colleges-all", authenticateAdmin, async (req: Request, res: Response) => {
-  try {
-    const colleges = await storage.getAllHostColleges();
-    res.json(colleges);
-  } catch (error) {
-    res.status(500).json({ error: "Failed to fetch all host colleges" });
   }
 });
 
@@ -253,7 +243,7 @@ apiRouter.get("/faculty-registrations/:id", async (req: Request, res: Response) 
   }
 });
 
-apiRouter.get("/fdp-events/:fdpId/faculty", authenticateAdmin, async (req: Request, res: Response) => {
+apiRouter.get("/fdp-events/:fdpId/faculty", async (req: Request, res: Response) => {
   try {
     const faculty = await storage.getFacultyByFdp(req.params.fdpId);
     res.json(faculty);
@@ -262,22 +252,12 @@ apiRouter.get("/fdp-events/:fdpId/faculty", authenticateAdmin, async (req: Reque
   }
 });
 
-apiRouter.get("/host-colleges/:hostCollegeId/faculty", authenticateAdmin, async (req: Request, res: Response) => {
+apiRouter.get("/host-colleges/:hostCollegeId/faculty", async (req: Request, res: Response) => {
   try {
     const faculty = await storage.getFacultyByHostCollege(req.params.hostCollegeId);
     res.json(faculty);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch faculty registrations" });
-  }
-});
-
-// New route to fetch all faculty registrations for admin dashboard overview
-apiRouter.get("/faculty-registrations-all", authenticateAdmin, async (req: Request, res: Response) => {
-  try {
-    const faculty = await storage.getAllFacultyRegistrations();
-    res.json(faculty);
-  } catch (error) {
-    res.status(500).json({ error: "Failed to fetch all faculty registrations" });
   }
 });
 
@@ -453,6 +433,7 @@ apiRouter.post("/payments/webhook", async (req: Request, res: Response) => {
               `,
             });
             
+            // Send success WhatsApp
             if (faculty.whatsapp) {
               let whatsappMsg = `✅ Registration Confirmed!\n\nYour registration for ${fdp.title} is confirmed.\n\nPayment ID: ${paymentId}\nAmount: ₹${payment.amount}`;
               if (fdp.whatsappGroupLink) {
@@ -525,7 +506,7 @@ apiRouter.post("/payments/webhook", async (req: Request, res: Response) => {
 });
 
 // ============= Communication Routes =============
-apiRouter.post("/communications/bulk-email", authenticateAdmin, async (req: Request, res: Response) => {
+apiRouter.post("/communications/bulk-email", async (req: Request, res: Response) => {
   try {
     const { fdpId, recipients, subject, content } = req.body;
     
@@ -557,7 +538,7 @@ apiRouter.post("/communications/bulk-email", authenticateAdmin, async (req: Requ
   }
 });
 
-apiRouter.post("/communications/bulk-whatsapp", authenticateAdmin, async (req: Request, res: Response) => {
+apiRouter.post("/communications/bulk-whatsapp", async (req: Request, res: Response) => {
   try {
     const { fdpId, recipients, message } = req.body;
     
@@ -724,7 +705,7 @@ apiRouter.post("/communications/share-feedback/:fdpId", authenticateAdmin, async
 });
 
 // ============= Analytics Routes =============
-apiRouter.get("/fdp-events/:fdpId/analytics", authenticateAdmin, async (req: Request, res: Response) => {
+apiRouter.get("/fdp-events/:fdpId/analytics", async (req: Request, res: Response) => {
   try {
     const analytics = await storage.getFdpAnalytics(req.params.fdpId);
     res.json(analytics);
@@ -754,25 +735,18 @@ apiRouter.post("/feedback/complete", async (req: Request, res: Response) => {
         if (!fdp) return res.status(404).json({ error: "FDP event not found" });
 
         const certificateId = `CERT-${Date.now()}-${facultyId.slice(0, 8).toUpperCase()}`;
-        
-        let collegeLogo: string | undefined = undefined;
-        if (faculty.hostCollegeId) {
-          const host = await storage.getHostCollege(faculty.hostCollegeId);
-          collegeLogo = host?.logoUrl || undefined;
-        }
-
         const certificateData: CertificateData = {
-          participant_name: faculty.name, // Changed to snake_case
-          fdp_title: fdp.title, // Changed to snake_case
-          start_date: format(new Date(fdp.startDate), "MMM dd, yyyy"), // Changed to snake_case
-          end_date: format(new Date(fdp.endDate), "MMM dd, yyyy"), // Changed to snake_case
-          certificate_id: certificateId, // Changed to snake_case
-          issue_date: format(new Date(), "MMM dd, yyyy"), // Changed to snake_case
-          college_name: faculty.institution, // Changed to snake_case
-          fdp_dates: `${format(new Date(fdp.startDate), "MMM dd, yyyy")} - ${format(new Date(fdp.endDate), "MMM dd, yyyy")}`, // Changed to snake_case
-          organiser_logo: process.env.ORGANISER_LOGO_URL, // Changed to snake_case
-          college_logo: collegeLogo, // Changed to snake_case
-          signature_image: process.env.SIGNATURE_IMAGE_URL, // Changed to snake_case
+          participantName: faculty.name,
+          fdpTitle: fdp.title,
+          startDate: format(new Date(fdp.startDate), "MMM dd, yyyy"),
+          endDate: format(new Date(fdp.endDate), "MMM dd, yyyy"),
+          certificateId,
+          issueDate: format(new Date(), "MMM dd, yyyy"),
+          collegeName: faculty.institution,
+          fdpDates: `${format(new Date(fdp.startDate), "MMM dd, yyyy")} - ${format(new Date(fdp.endDate), "MMM dd, yyyy")}`,
+          organiserLogo: process.env.ORGANISER_LOGO_URL,
+          collegeLogo: undefined,
+          signatureImage: process.env.SIGNATURE_IMAGE_URL,
         };
 
         // Prefer custom template from DB if set; fallback to default in code
@@ -868,17 +842,17 @@ apiRouter.post("/certificates/generate/:facultyId", authenticateAdmin, async (re
     }
 
     const certificateData: CertificateData = {
-      participant_name: faculty.name, // Changed to snake_case
-      fdp_title: fdp.title, // Changed to snake_case
-      start_date: format(new Date(fdp.startDate), "MMM dd, yyyy"), // Changed to snake_case
-      end_date: format(new Date(fdp.endDate), "MMM dd, yyyy"), // Changed to snake_case
-      certificate_id: certificateId, // Changed to snake_case
-      issue_date: format(new Date(), "MMM dd, yyyy"), // Changed to snake_case
-      college_name: faculty.institution, // Changed to snake_case
-      fdp_dates: `${format(new Date(fdp.startDate), "MMM dd, yyyy")} - ${format(new Date(fdp.endDate), "MMM dd, yyyy")}`, // Changed to snake_case
-      organiser_logo: process.env.ORGANISER_LOGO_URL, // Changed to snake_case
-      college_logo: collegeLogo, // Changed to snake_case
-      signature_image: process.env.SIGNATURE_IMAGE_URL, // Changed to snake_case
+      participantName: faculty.name,
+      fdpTitle: fdp.title,
+      startDate: format(new Date(fdp.startDate), "MMM dd, yyyy"),
+      endDate: format(new Date(fdp.endDate), "MMM dd, yyyy"),
+      certificateId,
+      issueDate: format(new Date(), "MMM dd, yyyy"),
+      collegeName: faculty.institution,
+      fdpDates: `${format(new Date(fdp.startDate), "MMM dd, yyyy")} - ${format(new Date(fdp.endDate), "MMM dd, yyyy")}`,
+      organiserLogo: process.env.ORGANISER_LOGO_URL,
+      collegeLogo,
+      signatureImage: process.env.SIGNATURE_IMAGE_URL,
     };
     
     // Prefer DB default template if available
@@ -937,7 +911,7 @@ apiRouter.post("/certificates/bulk-generate/:fdpId", authenticateAdmin, async (r
     }
     
     const faculty = await storage.getFacultyByFdp(fdpId);
-    const completedFaculty = faculty.filter(f => f.paymentStatus === "completed" && f.feedbackSubmitted && !f.certificateGenerated);
+    const completedFaculty = faculty.filter(f => f.paymentStatus === "completed");
     
     const results: Array<{ facultyId: string; status: string; certificateId?: string; error?: string }> = [];
     
@@ -951,24 +925,13 @@ apiRouter.post("/certificates/bulk-generate/:fdpId", authenticateAdmin, async (r
         
         const certificateId = `CERT-${Date.now()}-${fac.id.slice(0, 8).toUpperCase()}`;
         
-        let collegeLogo: string | undefined = undefined;
-        if (fac.hostCollegeId) {
-          const host = await storage.getHostCollege(fac.hostCollegeId);
-          collegeLogo = host?.logoUrl || undefined;
-        }
-
         const certificateData: CertificateData = {
-          participant_name: fac.name, // Changed to snake_case
-          fdp_title: fdp.title, // Changed to snake_case
-          start_date: format(new Date(fdp.startDate), "MMM dd, yyyy"), // Changed to snake_case
-          end_date: format(new Date(fdp.endDate), "MMM dd, yyyy"), // Changed to snake_case
-          certificate_id: certificateId, // Changed to snake_case
-          issue_date: format(new Date(), "MMM dd, yyyy"), // Changed to snake_case
-          college_name: fac.institution, // Changed to snake_case
-          fdp_dates: `${format(new Date(fdp.startDate), "MMM dd, yyyy")} - ${format(new Date(fdp.endDate), "MMM dd, yyyy")}`, // Changed to snake_case
-          organiser_logo: process.env.ORGANISER_LOGO_URL, // Changed to snake_case
-          college_logo: collegeLogo, // Changed to snake_case
-          signature_image: process.env.SIGNATURE_IMAGE_URL, // Changed to snake_case
+          participantName: fac.name,
+          fdpTitle: fdp.title,
+          startDate: format(new Date(fdp.startDate), "MMM dd, yyyy"),
+          endDate: format(new Date(fdp.endDate), "MMM dd, yyyy"),
+          certificateId,
+          issueDate: format(new Date(), "MMM dd, yyyy"),
         };
         
         const dbTemplate = await storage.getDefaultCertificateTemplateFromDb();
@@ -985,8 +948,6 @@ apiRouter.post("/certificates/bulk-generate/:fdpId", authenticateAdmin, async (r
           certificateUrl,
           issuedAt: new Date(),
         });
-
-        await storage.updateFacultyRegistration(fac.id, { certificateGenerated: true, certificateUrl });
         
         await sendEmail({
           to: fac.email,
@@ -995,16 +956,8 @@ apiRouter.post("/certificates/bulk-generate/:fdpId", authenticateAdmin, async (r
             <h2>Congratulations ${fac.name}!</h2>
             <p>Your certificate for <strong>${fdp.title}</strong> is ready.</p>
             <p>Certificate ID: ${certificateId}</p>
-            <p><a href="${certificateUrl}">Download Certificate</a></p>
           `,
         });
-
-        if (fac.whatsapp) {
-          await sendWhatsAppMessage({
-            to: fac.whatsapp,
-            message: `🎓 Certificate ready for ${fdp.title}. ID: ${certificateId}. Download: ${certificateUrl}`,
-          });
-        }
         
         results.push({ facultyId: fac.id, status: "generated", certificateId });
       } catch (error) {

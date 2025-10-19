@@ -28,7 +28,6 @@ export interface IStorage {
   createHostCollege(data: InsertHostCollege): Promise<HostCollege>;
   getHostCollege(id: string): Promise<HostCollege | undefined>;
   getHostCollegesByFdp(fdpId: string): Promise<HostCollege[]>;
-  getAllHostColleges(): Promise<HostCollege[]>; // New method
   updateHostCollege(id: string, data: Partial<InsertHostCollege>): Promise<HostCollege | undefined>;
   
   // Faculty Registrations
@@ -36,7 +35,6 @@ export interface IStorage {
   getFacultyRegistration(id: string): Promise<FacultyRegistration | undefined>;
   getFacultyByFdp(fdpId: string): Promise<FacultyRegistration[]>;
   getFacultyByHostCollege(hostCollegeId: string): Promise<FacultyRegistration[]>;
-  getAllFacultyRegistrations(): Promise<FacultyRegistration[]>; // New method
   updateFacultyRegistration(id: string, data: Partial<InsertFacultyRegistration>): Promise<FacultyRegistration | undefined>;
   
   // Payments
@@ -129,10 +127,6 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(schema.hostColleges.registeredAt));
   }
 
-  async getAllHostColleges(): Promise<HostCollege[]> {
-    return await db.select().from(schema.hostColleges).orderBy(desc(schema.hostColleges.registeredAt));
-  }
-
   async updateHostCollege(id: string, data: Partial<InsertHostCollege>): Promise<HostCollege | undefined> {
     const [college] = await db.update(schema.hostColleges)
       .set(data)
@@ -163,10 +157,6 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(schema.facultyRegistrations)
       .where(eq(schema.facultyRegistrations.hostCollegeId, hostCollegeId))
       .orderBy(desc(schema.facultyRegistrations.registeredAt));
-  }
-
-  async getAllFacultyRegistrations(): Promise<FacultyRegistration[]> {
-    return await db.select().from(schema.facultyRegistrations).orderBy(desc(schema.facultyRegistrations.registeredAt));
   }
 
   async updateFacultyRegistration(id: string, data: Partial<InsertFacultyRegistration>): Promise<FacultyRegistration | undefined> {
