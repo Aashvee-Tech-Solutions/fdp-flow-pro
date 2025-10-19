@@ -1,4 +1,4 @@
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql, ne } from "drizzle-orm";
 import { db } from "../db";
 import * as schema from "../shared/schema";
 import type {
@@ -50,6 +50,15 @@ export interface IStorage {
   // Certificates
   createCertificate(data: schema.InsertCertificate): Promise<Certificate>;
   getCertificateByFacultyId(facultyId: string): Promise<Certificate | undefined>;
+
+  // Certificate templates
+  listCertificateTemplates(): Promise<schema.CertificateTemplate[]>;
+  getCertificateTemplate(id: string): Promise<schema.CertificateTemplate | undefined>;
+  getDefaultCertificateTemplateFromDb(): Promise<schema.CertificateTemplate | undefined>;
+  createCertificateTemplate(data: schema.InsertCertificateTemplate): Promise<schema.CertificateTemplate>;
+  updateCertificateTemplate(id: string, data: Partial<schema.InsertCertificateTemplate>): Promise<schema.CertificateTemplate | undefined>;
+  deleteCertificateTemplate(id: string): Promise<boolean>;
+  setDefaultCertificateTemplate(id: string): Promise<void>;
   
   // Coupons
   getCouponByCode(code: string): Promise<Coupon | undefined>;
@@ -205,6 +214,58 @@ export class DatabaseStorage implements IStorage {
       .where(eq(schema.certificates.facultyId, facultyId));
     return certificate;
   }
+
+  // Certificate templates
+  async listCertificateTemplates() {
+    return await db.select().from(schema.certificateTemplates).orderBy(desc(schema.certificateTemplates.updatedAt));
+  }
+
+  async getCertificateTemplate(id: string) {
+    const [template] = await db
+      .select()
+      .from(schema.certificateTemplates)
+      .where(eq(schema.certificateTemplates.id, id));
+    return template;
+  }
+
+  async getDefaultCertificateTemplateFromDb() {
+    const [template] = await db
+      .select()
+      .from(schema.certificateTemplates)
+      .where(eq(schema.certificateTemplates.isDefault, true));
+    return template;
+  }
+
+  async createCertificateTemplate(data: schema.InsertCertificateTemplate) {
+    const [template] = await db.insert(schema.certificateTemplates).values(data).returning();
+    return template;
+  }
+
+  async updateCertificateTemplate(id: string, data: Partial<schema.InsertCertificateTemplate>) {
+    const [template] = await db
+      .update(schema.certificateTemplates)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(schema.certificateTemplates.id, id))
+      .returning();
+    return template;
+  }
+
+  async deleteCertificateTemplate(id: string) {
+    const result = await db.delete(schema.certificateTemplates).where(eq(schema.certificateTemplates.id, id));
+    return result.rowCount! > 0;
+  }
+
+  async setDefaultCertificateTemplate(id: string) {
+    // Unset existing defaults
+    await db.update(schema.certificateTemplates).set({ isDefault: false });
+    // Set provided template as default
+    await db
+      .update(schema.certificateTemplates)
+      .set({ isDefault: true, updatedAt: new Date() })
+      .where(eq(schema.certificateTemplates.id, id));
+  }
+
+  // Template methods will be implemented when template management endpoints are added
 
   // Coupons
   async getCouponByCode(code: string): Promise<Coupon | undefined> {

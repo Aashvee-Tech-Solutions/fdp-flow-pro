@@ -9,6 +9,12 @@ export interface CertificateData {
   endDate: string;
   certificateId: string;
   issueDate: string;
+  // Optional enriched fields for advanced templates
+  collegeName?: string;
+  fdpDates?: string;
+  organiserLogo?: string;
+  collegeLogo?: string;
+  signatureImage?: string;
 }
 
 export async function generateCertificatePDF(
@@ -61,14 +67,30 @@ export async function generateCertificatePDF(
 
 function renderCertificateTemplate(template: string, data: CertificateData): string {
   let html = template;
-  
-  html = html.replace(/\{\{participantName\}\}/g, data.participantName);
-  html = html.replace(/\{\{fdpTitle\}\}/g, data.fdpTitle);
-  html = html.replace(/\{\{startDate\}\}/g, data.startDate);
-  html = html.replace(/\{\{endDate\}\}/g, data.endDate);
-  html = html.replace(/\{\{certificateId\}\}/g, data.certificateId);
-  html = html.replace(/\{\{issueDate\}\}/g, data.issueDate);
-  
+
+  // Support both camelCase and snake_case placeholders
+  const replacements: Record<string, string | undefined> = {
+    participantName: data.participantName,
+    participant_name: data.participantName,
+    fdpTitle: data.fdpTitle,
+    fdp_title: data.fdpTitle,
+    startDate: data.startDate,
+    endDate: data.endDate,
+    fdp_dates: data.fdpDates || `${data.startDate} - ${data.endDate}`,
+    certificateId: data.certificateId,
+    issueDate: data.issueDate,
+    college_name: data.collegeName,
+    organiser_logo: data.organiserLogo,
+    college_logo: data.collegeLogo,
+    signature_image: data.signatureImage,
+  };
+
+  for (const [key, value] of Object.entries(replacements)) {
+    const safeValue = value ?? "";
+    const pattern = new RegExp(`\\{\\{${key}\\}\\}`, "g");
+    html = html.replace(pattern, safeValue);
+  }
+
   return html;
 }
 
@@ -212,6 +234,17 @@ export function getDefaultCertificateTemplate(): string {
       z-index: 1;
       margin-top: 30px;
     }
+    .logos {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      margin-top: 10px;
+    }
+    .logos img {
+      height: 48px;
+      object-fit: contain;
+    }
     
     .signature-section {
       text-align: center;
@@ -298,10 +331,10 @@ export function getDefaultCertificateTemplate(): string {
         has successfully completed the Faculty Development Program
       </div>
       
-      <div class="fdp-title">{{fdpTitle}}</div>
+      <div class="fdp-title">{{fdp_title}}</div>
       
       <div class="dates">
-        Conducted from {{startDate}} to {{endDate}}
+        Conducted from {{fdp_dates}}
       </div>
     </div>
     
@@ -319,6 +352,21 @@ export function getDefaultCertificateTemplate(): string {
       </div>
     </div>
     
+    <div class="logos">
+      <div>
+        <div style="font-size:12px;color:#777;">Organiser</div>
+        <img src="{{organiser_logo}}" alt="Organiser Logo" />
+      </div>
+      <div>
+        <div style="font-size:12px;color:#777;">Host College</div>
+        <img src="{{college_logo}}" alt="College Logo" />
+      </div>
+      <div>
+        <div style="font-size:12px;color:#777;">Signature</div>
+        <img src="{{signature_image}}" alt="Signature" />
+      </div>
+    </div>
+
     <div class="certificate-id">
       Certificate ID: {{certificateId}}
     </div>

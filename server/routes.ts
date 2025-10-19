@@ -570,6 +570,140 @@ apiRouter.post("/communications/bulk-whatsapp", async (req: Request, res: Respon
   }
 });
 
+// Send reminders to all paid participants of an FDP
+apiRouter.post("/communications/send-reminders/:fdpId", authenticateAdmin, async (req: Request, res: Response) => {
+  try {
+    const { fdpId } = req.params;
+    const fdp = await storage.getFdpEvent(fdpId);
+    if (!fdp) return res.status(404).json({ error: "FDP not found" });
+
+    const faculty = await storage.getFacultyByFdp(fdpId);
+    const confirmed = faculty.filter(f => f.paymentStatus === "completed");
+
+    let sent = 0;
+    for (const fac of confirmed) {
+      await sendEmail({
+        to: fac.email,
+        subject: `Reminder: ${fdp.title} starts soon`,
+        html: `
+          <h2>FDP Reminder</h2>
+          <p>Dear ${fac.name},</p>
+          <p>This is a reminder that <strong>${fdp.title}</strong> starts on <strong>${format(new Date(fdp.startDate), "MMM dd, yyyy")}</strong>.</p>
+          ${fdp.joiningLink ? `<p>Joining Link: <a href="${fdp.joiningLink}">${fdp.joiningLink}</a></p>` : ""}
+        `,
+      });
+
+      if (fac.whatsapp) {
+        await sendWhatsAppMessage({
+          to: fac.whatsapp,
+          message: `📅 Reminder: ${fdp.title} starts on ${format(new Date(fdp.startDate), "MMM dd, yyyy")}. ${fdp.joiningLink ? `Join: ${fdp.joiningLink}` : ""}`.trim(),
+        });
+      }
+
+      await storage.createCommunicationLog({
+        fdpId,
+        recipientType: "faculty",
+        recipientId: fac.id,
+        channel: "email",
+        messageType: "reminder",
+        recipient: fac.email,
+        content: `Reminder for ${fdp.title}`,
+        status: "sent",
+        sentAt: new Date(),
+      });
+
+      if (fac.whatsapp) {
+        await storage.createCommunicationLog({
+          fdpId,
+          recipientType: "faculty",
+          recipientId: fac.id,
+          channel: "whatsapp",
+          messageType: "reminder",
+          recipient: fac.whatsapp,
+          content: `Reminder for ${fdp.title}`,
+          status: "sent",
+          sentAt: new Date(),
+        });
+      }
+
+      sent++;
+    }
+
+    res.json({ success: true, sent });
+  } catch (error) {
+    console.error("Reminder send error:", error);
+    res.status(500).json({ error: "Failed to send reminders" });
+  }
+});
+
+// Share community link with all confirmed participants
+apiRouter.post("/communications/share-community/:fdpId", authenticateAdmin, async (req: Request, res: Response) => {
+  try {
+    const { fdpId } = req.params;
+    const fdp = await storage.getFdpEvent(fdpId);
+    if (!fdp) return res.status(404).json({ error: "FDP not found" });
+
+    const faculty = await storage.getFacultyByFdp(fdpId);
+    const confirmed = faculty.filter(f => f.paymentStatus === "completed");
+
+    let sent = 0;
+    for (const fac of confirmed) {
+      if (fdp.communityLink) {
+        await sendEmail({
+          to: fac.email,
+          subject: `Community updates for ${fdp.title}`,
+          html: `<p>Join the community for updates: <a href="${fdp.communityLink}">${fdp.communityLink}</a></p>`,
+        });
+        if (fac.whatsapp) {
+          await sendWhatsAppMessage({
+            to: fac.whatsapp,
+            message: `🔔 Community updates for ${fdp.title}: ${fdp.communityLink}`,
+          });
+        }
+        sent++;
+      }
+    }
+
+    res.json({ success: true, sent });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to share community link" });
+  }
+});
+
+// Share feedback form with all confirmed participants
+apiRouter.post("/communications/share-feedback/:fdpId", authenticateAdmin, async (req: Request, res: Response) => {
+  try {
+    const { fdpId } = req.params;
+    const fdp = await storage.getFdpEvent(fdpId);
+    if (!fdp) return res.status(404).json({ error: "FDP not found" });
+
+    const faculty = await storage.getFacultyByFdp(fdpId);
+    const confirmed = faculty.filter(f => f.paymentStatus === "completed");
+
+    let sent = 0;
+    for (const fac of confirmed) {
+      if (fdp.feedbackFormLink) {
+        await sendEmail({
+          to: fac.email,
+          subject: `Feedback requested for ${fdp.title}`,
+          html: `<p>Please submit your feedback: <a href="${fdp.feedbackFormLink}">${fdp.feedbackFormLink}</a></p>`,
+        });
+        if (fac.whatsapp) {
+          await sendWhatsAppMessage({
+            to: fac.whatsapp,
+            message: `📝 Please submit feedback for ${fdp.title}: ${fdp.feedbackFormLink}`,
+          });
+        }
+        sent++;
+      }
+    }
+
+    res.json({ success: true, sent });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to share feedback link" });
+  }
+});
+
 // ============= Analytics Routes =============
 apiRouter.get("/fdp-events/:fdpId/analytics", async (req: Request, res: Response) => {
   try {
@@ -577,6 +711,85 @@ apiRouter.get("/fdp-events/:fdpId/analytics", async (req: Request, res: Response
     res.json(analytics);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch analytics" });
+  }
+});
+
+// ============= Feedback Routes =============
+// Mark feedback as completed and auto-generate certificate
+apiRouter.post("/feedback/complete", async (req: Request, res: Response) => {
+  try {
+    const { facultyId } = req.body;
+    if (!facultyId) return res.status(400).json({ error: "facultyId is required" });
+
+    const faculty = await storage.getFacultyRegistration(facultyId);
+    if (!faculty) return res.status(404).json({ error: "Faculty registration not found" });
+
+    // Update feedbackSubmitted flag
+    await storage.updateFacultyRegistration(facultyId, { feedbackSubmitted: true });
+
+    // Generate certificate only if payment completed and not already generated
+    if (faculty.paymentStatus === "completed") {
+      const existing = await storage.getCertificateByFacultyId(facultyId);
+      if (!existing) {
+        const fdp = await storage.getFdpEvent(faculty.fdpId);
+        if (!fdp) return res.status(404).json({ error: "FDP event not found" });
+
+        const certificateId = `CERT-${Date.now()}-${facultyId.slice(0, 8).toUpperCase()}`;
+        const certificateData: CertificateData = {
+          participantName: faculty.name,
+          fdpTitle: fdp.title,
+          startDate: format(new Date(fdp.startDate), "MMM dd, yyyy"),
+          endDate: format(new Date(fdp.endDate), "MMM dd, yyyy"),
+          certificateId,
+          issueDate: format(new Date(), "MMM dd, yyyy"),
+          collegeName: faculty.institution,
+          fdpDates: `${format(new Date(fdp.startDate), "MMM dd, yyyy")} - ${format(new Date(fdp.endDate), "MMM dd, yyyy")}`,
+          organiserLogo: process.env.ORGANISER_LOGO_URL,
+          collegeLogo: undefined,
+          signatureImage: process.env.SIGNATURE_IMAGE_URL,
+        };
+
+        // Prefer custom template from DB if set; fallback to default in code
+        const dbTemplate = await storage.getDefaultCertificateTemplateFromDb();
+        const templateHtml = dbTemplate?.htmlTemplate || getDefaultCertificateTemplate();
+        const pdfBuffer = await generateCertificatePDF(certificateData, templateHtml);
+        const fileName = `${certificateId}.pdf`;
+        const certificateUrl = await saveCertificate(pdfBuffer, fileName);
+
+        await storage.createCertificate({
+          facultyId,
+          fdpId: faculty.fdpId,
+          certificateId,
+          certificateUrl,
+          issuedAt: new Date(),
+        });
+
+        await sendEmail({
+          to: faculty.email,
+          subject: `Certificate for ${fdp.title}`,
+          html: `
+            <h2>Congratulations ${faculty.name}!</h2>
+            <p>Your certificate for <strong>${fdp.title}</strong> is ready.</p>
+            <p>Certificate ID: ${certificateId}</p>
+            <p><a href="${certificateUrl}">Download Certificate</a></p>
+          `,
+        });
+
+        if (faculty.whatsapp) {
+          await sendWhatsAppMessage({
+            to: faculty.whatsapp,
+            message: `🎓 Certificate ready for ${fdp.title}. ID: ${certificateId}. Download: ${certificateUrl}`,
+          });
+        }
+
+        await storage.updateFacultyRegistration(facultyId, { certificateGenerated: true, certificateUrl });
+      }
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Feedback completion error:", error);
+    res.status(500).json({ error: "Failed to process feedback completion" });
   }
 });
 
@@ -621,6 +834,13 @@ apiRouter.post("/certificates/generate/:facultyId", authenticateAdmin, async (re
     
     const certificateId = `CERT-${Date.now()}-${facultyId.slice(0, 8).toUpperCase()}`;
     
+    // Determine host college logo if available
+    let collegeLogo: string | undefined = undefined;
+    if (faculty.hostCollegeId) {
+      const host = await storage.getHostCollege(faculty.hostCollegeId);
+      collegeLogo = host?.logoUrl || undefined;
+    }
+
     const certificateData: CertificateData = {
       participantName: faculty.name,
       fdpTitle: fdp.title,
@@ -628,9 +848,16 @@ apiRouter.post("/certificates/generate/:facultyId", authenticateAdmin, async (re
       endDate: format(new Date(fdp.endDate), "MMM dd, yyyy"),
       certificateId,
       issueDate: format(new Date(), "MMM dd, yyyy"),
+      collegeName: faculty.institution,
+      fdpDates: `${format(new Date(fdp.startDate), "MMM dd, yyyy")} - ${format(new Date(fdp.endDate), "MMM dd, yyyy")}`,
+      organiserLogo: process.env.ORGANISER_LOGO_URL,
+      collegeLogo,
+      signatureImage: process.env.SIGNATURE_IMAGE_URL,
     };
     
-    const template = getDefaultCertificateTemplate();
+    // Prefer DB default template if available
+    const dbTemplate = await storage.getDefaultCertificateTemplateFromDb();
+    const template = dbTemplate?.htmlTemplate || getDefaultCertificateTemplate();
     const pdfBuffer = await generateCertificatePDF(certificateData, template);
     
     const fileName = `${certificateId}.pdf`;
@@ -707,7 +934,8 @@ apiRouter.post("/certificates/bulk-generate/:fdpId", authenticateAdmin, async (r
           issueDate: format(new Date(), "MMM dd, yyyy"),
         };
         
-        const template = getDefaultCertificateTemplate();
+        const dbTemplate = await storage.getDefaultCertificateTemplateFromDb();
+        const template = dbTemplate?.htmlTemplate || getDefaultCertificateTemplate();
         const pdfBuffer = await generateCertificatePDF(certificateData, template);
         
         const fileName = `${certificateId}.pdf`;
@@ -750,3 +978,74 @@ apiRouter.post("/certificates/bulk-generate/:fdpId", authenticateAdmin, async (r
 });
 
 export default apiRouter;
+
+// ============= Certificate Template Routes =============
+apiRouter.get("/certificate-templates", authenticateAdmin, async (req: Request, res: Response) => {
+  try {
+    const templates = await storage.listCertificateTemplates();
+    res.json(templates);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch certificate templates" });
+  }
+});
+
+apiRouter.get("/certificate-templates/:id", authenticateAdmin, async (req: Request, res: Response) => {
+  try {
+    const template = await storage.getCertificateTemplate(req.params.id);
+    if (!template) return res.status(404).json({ error: "Template not found" });
+    res.json(template);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch certificate template" });
+  }
+});
+
+apiRouter.post("/certificate-templates", authenticateAdmin, async (req: Request, res: Response) => {
+  try {
+    const { name, htmlTemplate, organiserLogo, signatureImage, isDefault } = req.body;
+    if (!name || !htmlTemplate) {
+      return res.status(400).json({ error: "Name and HTML template are required" });
+    }
+    const template = await storage.createCertificateTemplate({
+      name,
+      htmlTemplate,
+      organiserLogo,
+      signatureImage,
+      isDefault: !!isDefault,
+    });
+    if (isDefault) {
+      await storage.setDefaultCertificateTemplate(template.id);
+    }
+    res.status(201).json(template);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to create certificate template" });
+  }
+});
+
+apiRouter.put("/certificate-templates/:id", authenticateAdmin, async (req: Request, res: Response) => {
+  try {
+    const template = await storage.updateCertificateTemplate(req.params.id, req.body);
+    if (!template) return res.status(404).json({ error: "Template not found" });
+    res.json(template);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to update certificate template" });
+  }
+});
+
+apiRouter.delete("/certificate-templates/:id", authenticateAdmin, async (req: Request, res: Response) => {
+  try {
+    const success = await storage.deleteCertificateTemplate(req.params.id);
+    if (!success) return res.status(404).json({ error: "Template not found" });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to delete certificate template" });
+  }
+});
+
+apiRouter.post("/certificate-templates/:id/default", authenticateAdmin, async (req: Request, res: Response) => {
+  try {
+    await storage.setDefaultCertificateTemplate(req.params.id);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to set default template" });
+  }
+});
